@@ -709,7 +709,7 @@ function buildTodayView(){
     shTitle.textContent=current.title;
     shMeta.textContent=`${fmtH(current.startH)} – ${fmtH(current.startH+current.dur)} · ${current.effort}`;
     if(nextUp&&nextUp!==current){
-      shMeta2.textContent=`Next: ${nextUp.title} · ${fmtH(nextUp.startH)}`;
+      shMeta2.textContent=`Next: ${nextUp.title} · ${fmtH(nextUp.startH)} – ${fmtH(nextUp.startH+nextUp.dur)}${nextUp.effort?' · '+nextUp.effort:''}`;
       shMeta2.style.display='block';
     }else{
       shMeta2.style.display='none';
@@ -718,11 +718,11 @@ function buildTodayView(){
     heroExclude=current;
     shCard.onclick=()=>{switchView('cal');setTimeout(()=>current.drift?showDriftPanel(current):showEventPanel(current),200);};
   }else if(nextUp){
-    shLabel.textContent='OPEN';
-    shTitle.textContent='Nothing in progress right now';
-    shMeta.textContent=`${fmtH(nowH)} · Free until ${fmtH(nextUp.startH)}`;
-    shMeta2.textContent=`Next: ${nextUp.title} · ${fmtH(nextUp.startH)} – ${fmtH(nextUp.startH+nextUp.dur)}${nextUp.effort?' · '+nextUp.effort:''}`;
-    shMeta2.style.display='block';
+    shLabel.textContent='NEXT';
+    shTitle.textContent=nextUp.title;
+    shMeta.textContent=`${fmtH(nextUp.startH)} – ${fmtH(nextUp.startH+nextUp.dur)}${nextUp.effort?' · '+nextUp.effort:''}`;
+    shMeta2.style.display='none';
+    shMeta2.textContent='';
     heroExclude=nextUp;
     shCard.onclick=()=>{switchView('cal');setTimeout(()=>nextUp.drift?showDriftPanel(nextUp):showEventPanel(nextUp),200);};
   }else{
@@ -838,7 +838,7 @@ function buildInsightsView(){
   let lunchWeekdays=0;
   for(let d=1;d<=5;d++){if(WB_BLOCKS.some(b=>b.day===d&&b.label==='Lunch'))lunchWeekdays++;}
   let overloadCount=0,overloadDetail='';
-  loads.forEach((h,i)=>{if(h>5){overloadCount++;if(!overloadDetail)overloadDetail=`${DAY_NAMES[i]}: ${h.toFixed(1)} hrs`;}});
+  loads.forEach((h,i)=>{if(h>4.5){overloadCount++;if(!overloadDetail)overloadDetail=`${DAY_NAMES[i]}: ${h.toFixed(1)} hrs`;}});
   const deepHrs=EVENTS.filter(e=>e.type==='deep').reduce((s,e)=>s+e.dur,0);
   const barData=DAY_NAMES.map((n,i)=>({
     day:n[0],
@@ -847,7 +847,7 @@ function buildInsightsView(){
   }));
   const maxBar=6;
   let daysHeavy=0,daysBefore10=0;
-  loads.forEach(h=>{if(h>5)daysHeavy++;});
+  loads.forEach(h=>{if(h>4.5)daysHeavy++;});
   for(let d=0;d<7;d++){
     const evs=EVENTS.filter(e=>e.day===d);
     if(evs.length&&evs.some(e=>e.startH<10))daysBefore10++;
@@ -870,7 +870,7 @@ function buildInsightsView(){
       <div class="ins-card accent-amber" style="animation-delay:120ms">
         <div class="ins-card-label">Overloaded days</div>
         <div class="ins-card-val">${overloadCount}</div>
-        <div class="ins-card-sub warn">${overloadDetail||'None over 5 hrs'}</div>
+        <div class="ins-card-sub warn">${overloadDetail||'None over capacity'}</div>
       </div>
       <div class="ins-card accent-blue" style="animation-delay:180ms">
         <div class="ins-card-label">Deep work hrs</div>
@@ -896,7 +896,7 @@ function buildInsightsView(){
           ${barData.map(d=>{
             const ph=Math.round((d.planned/maxBar)*72);
             const dh=Math.round((d.done/maxBar)*72);
-            const overload=d.planned>5;
+            const overload=d.planned>4.5;
             return `<div class="bar-col">
               <div class="bar-pair" style="height:${ph}px;align-items:flex-end">
                 <div class="bar-seg" style="height:${ph}px;width:12px;background:${overload?'#fce8e6':'#e8f0fe'}"></div>
@@ -944,7 +944,7 @@ function buildInsightsView(){
           <span class="wb-table-val ${lunchWeekdays<3?'warn':''}">${lunchWeekdays} / 5 weekdays</span>
         </div>
         <div class="wb-table-row">
-          <span class="wb-table-label">Days with &gt;5 hrs scheduled</span>
+          <span class="wb-table-label">Days with &gt;4.5 hrs scheduled</span>
           <span class="wb-table-val">${daysHeavy} / 7</span>
         </div>
         <div class="wb-table-row">
@@ -1078,7 +1078,14 @@ function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?drift
 function driftBreak(){
   const base=driftEv;if(!base) return;closePanel();
   setTimeout(()=>{
-    [1,2,3].forEach((d,i)=>EVENTS.push({id:100+i,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:base.deadline?{day:Math.min(base.deadline.day,d+1),hour:base.deadline.hour}:{day:d,hour:17}}));
+    let nextId=EVENTS.reduce((m,e)=>Math.max(m,e.id),0);
+    [1,2,3].forEach((d,i)=>{
+      nextId++;
+      const dl=base.deadline
+        ?{day:Math.max(d,base.deadline.day),hour:base.deadline.hour}
+        :{day:d,hour:17};
+      EVENTS.push({id:nextId,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:dl});
+    });
     const idx=EVENTS.findIndex(e=>e.id===base.id);if(idx>-1) EVENTS.splice(idx,1);
     buildWeekGrid();showToast('Split into 3 sessions across Mon–Wed 9 AM.');
   },220);
@@ -1152,7 +1159,7 @@ function confirmSlot(){
     const slot=slots[selSlot]||slots[0];
     const dl=window._pendingOptimizeDeadline||defaultDeadlineForOptimize();
     if(!slot){buildWeekGrid();closePanel();return;}
-    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:selEffort==='30m'?.5:selEffort==='1h'?1:selEffort==='2h'?2:3,color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
+    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(selEffort),color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
     buildWeekGrid();buildSidebarLoad();buildWeekHeader();closePanel();showToast(`"${name}" added — ${slot.label.split(',')[0]}`);
   },420);
 }
