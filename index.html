@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cal — Intelligent Scheduling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root{
+  --teal:#0d9488;--teal-light:#f0fdfa;--teal-border:#99f6e4;--teal-mid:#14b8a6;
+  --blue:#1a73e8;--blue-light:#e8f0fe;--blue-border:#aecbfa;
+  --amber:#b45309;--amber-light:#fef7e0;--amber-border:#fde68a;
+  --red:#c5221f;--red-light:#fce8e6;--red-border:#fca5a5;
+  --text-primary:#111827;--text-secondary:#6b7280;--text-tertiary:#9ca3af;
+  --border:#e5e7eb;--border-strong:#d1d5db;
+  --surface:#ffffff;--surface-raised:#f9fafb;--bg:#f3f4f6;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:20px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text-primary);height:100vh;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit}
+
+/* ── TOP BAR ── */
+.topbar{height:64px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:4px;flex-shrink:0;z-index:10}
+.topbar-logo{font-size:20px;font-weight:600;color:var(--blue);letter-spacing:-0.4px;margin-right:16px}
+.topbar-nav{display:flex;gap:2px}
+.topbar-btn{padding:7px 16px;border-radius:20px;border:none;background:transparent;font-size:13px;font-weight:500;color:var(--text-secondary);letter-spacing:-0.1px;transition:background 150ms ease,color 150ms ease}
+.topbar-btn:hover{background:var(--surface-raised)}
+.topbar-btn.active{background:var(--blue-light);color:var(--blue)}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.topbar-new{padding:8px 20px;border-radius:20px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:600;letter-spacing:-0.1px;display:flex;align-items:center;gap:6px;transition:background 150ms ease,transform 150ms ease}
+.topbar-new:hover{background:#1765cc}
+.topbar-new:active{transform:scale(.97)}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+
+/* ── LAYOUT ── */
+.app-body{display:flex;flex:1;overflow:hidden}
+.sidebar{width:210px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:14px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.right-panel{width:308px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow:hidden;transform:translateX(100%);opacity:0;transition:transform 190ms cubic-bezier(.4,0,.2,1),opacity 190ms ease;will-change:transform,opacity}
+.right-panel.open{transform:translateX(0);opacity:1;overflow-y:auto}
+.right-panel.closing{transform:translateX(100%);opacity:0}
+
+/* ── SIDEBAR ── */
+.mini-cal-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 10px}
+.mini-month{font-size:13px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px}
+.mini-nav{border:none;background:transparent;color:var(--text-secondary);font-size:16px;padding:2px 6px;border-radius:50%;transition:background 150ms ease}
+.mini-nav:hover{background:var(--surface-raised)}
+.mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 4px}
+.mini-day{font-size:11.5px;text-align:center;padding:4px 2px;border-radius:50%;color:var(--text-secondary);cursor:pointer;transition:background 120ms ease}
+.mini-day:hover:not(.label){background:var(--surface-raised)}
+.mini-day.label{color:var(--text-tertiary);font-weight:600;font-size:10px;cursor:default}
+.mini-day.today{background:var(--blue);color:#fff;font-weight:500}
+.sidebar-divider{height:1px;background:var(--border);margin:12px 4px}
+.sidebar-section{font-size:10px;font-weight:600;color:var(--text-tertiary);letter-spacing:.06em;padding:0 12px 6px;text-transform:uppercase}
+.cal-chip{display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:8px;font-size:13px;color:var(--text-primary);transition:background 150ms ease;cursor:default}
+.cal-chip:hover{background:var(--surface-raised)}
+.cal-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ── WEEKLY LOAD SUMMARY (sidebar) ── */
+.load-summary{margin:8px 4px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.load-summary-title{font-size:10px;font-weight:600;color:var(--text-tertiary);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.load-days{display:flex;gap:3px;align-items:flex-end;height:32px;margin-bottom:5px}
+.load-bar{flex:1;border-radius:3px 3px 0 0;min-height:4px;transition:height 300ms ease}
+.load-day-labels{display:flex;gap:3px}
+.load-day-label{flex:1;font-size:9px;color:var(--text-tertiary);text-align:center;font-weight:500}
+.load-legend{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.load-legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-secondary)}
+.load-legend-dot{width:7px;height:7px;border-radius:50%}
+
+/* ── WEEK GRID ── */
+.week-header{display:grid;grid-template-columns:52px repeat(7,1fr);border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.wh-spacer{border-right:1px solid var(--border)}
+.wh-day{text-align:center;padding:10px 4px 5px;border-right:1px solid var(--border);cursor:pointer;transition:background 150ms ease}
+.wh-day:hover{background:var(--surface-raised)}
+.wh-day-name{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em}
+.wh-day-num{font-size:22px;font-weight:400;color:var(--text-secondary);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin:3px auto 0}
+.wh-day-num.today{background:var(--blue);color:#fff;font-weight:500}
+.wh-load-strip{height:6px;border-radius:3px;margin:4px 10px 5px;transition:background 300ms ease}
+.week-scroll{flex:1;overflow-y:auto;position:relative}
+.week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);position:relative}
+.hour-label{font-size:10.5px;color:var(--text-tertiary);text-align:right;padding-right:10px;height:48px;display:flex;align-items:flex-start;padding-top:2px;margin-top:-6px;font-weight:500}
+.day-col{border-right:1px solid var(--border);position:relative;min-height:1152px}
+.day-col.today-col{background:rgba(26,115,232,.015)}
+.hour-line{position:absolute;left:0;right:0;border-top:1px solid rgba(0,0,0,.05);height:48px}
+.now-line{position:absolute;left:0;right:0;border-top:2px solid #ef4444;z-index:3}
+.now-dot{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:#ef4444}
+.wb-block{position:absolute;left:4px;right:4px;border-radius:8px;padding:6px 9px;font-size:12px;z-index:1;background:#ccfbf1;color:#0d9488;border-left:3px solid #0d9488;overflow:hidden}
+
+/* ── EVENTS ── */
+.cal-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer;z-index:2;overflow:hidden;transition:filter 150ms ease,box-shadow 150ms ease,transform 150ms ease;transform-origin:left center}
+.cal-event:hover{filter:brightness(.95);box-shadow:0 4px 12px rgba(0,0,0,.15);transform:scaleX(1.012)}
+.cal-event.drift{border-left:3px solid #ef4444}
+.cal-event.event-pop{animation:eventPop 200ms cubic-bezier(.34,1.4,.64,1) both}
+@keyframes eventPop{from{transform:scaleY(0);opacity:0;transform-origin:top}to{transform:scaleY(1);opacity:1}}
+.event-title{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.1px}
+.event-time-label{opacity:.8;font-size:11px;font-weight:400;margin-top:1px}
+.drift-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.12);border-radius:4px;padding:1px 5px;margin-top:2px;animation:badgePulse 2.5s ease-in-out infinite}
+@keyframes badgePulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ── VIEW LAYERS ── */
+.view-layer{position:absolute;inset:0;transition:opacity 160ms ease,transform 160ms ease;will-change:opacity,transform}
+.view-layer.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+.view-layer.visible{opacity:1;transform:translateY(0)}
+.week-view-wrap{overflow:hidden;display:flex;flex-direction:column;height:100%}
+
+/* ── TODAY VIEW ── */
+.today-view{overflow-y:auto;padding:0;height:100%;display:flex;gap:0}
+.today-left{flex:1;overflow-y:auto;padding:32px 36px}
+.today-right{width:272px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;padding:24px 18px;background:var(--surface-raised)}
+.start-here{background:var(--blue-light);border-radius:var(--radius-xl);padding:22px 26px;margin-bottom:24px;border-left:4px solid var(--blue);animation:cardIn 220ms cubic-bezier(.4,0,.2,1) both}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.sh-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+.sh-title{font-size:24px;font-weight:500;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:6px;line-height:1.25}
+.sh-meta{font-size:13px;color:var(--text-secondary);margin-bottom:18px;line-height:1.5}
+.sh-start-btn{width:100%;padding:11px 24px;border-radius:var(--radius-xl);border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.1px;transition:background 150ms ease,transform 150ms ease}
+.sh-start-btn:hover{background:#1765cc}
+.sh-start-btn:active{transform:scale(.97)}
+.tv-section-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:22px}
+.tv-task{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:box-shadow 150ms ease,border-color 150ms ease,transform 150ms ease;animation:taskIn 200ms ease both;opacity:0}
+@keyframes taskIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.tv-task:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:var(--border-strong);transform:translateX(3px)}
+.tv-task-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tv-task-info{flex:1}
+.tv-task-title{font-size:14px;font-weight:500;color:var(--text-primary);letter-spacing:-0.1px}
+.tv-task-meta{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.likelihood-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.lp-high{background:#dcfce7;color:#15803d}
+.lp-med{background:var(--amber-light);color:var(--amber)}
+.lp-low{background:var(--red-light);color:var(--red)}
+.lp-dot{width:5px;height:5px;border-radius:50%}
+.lpd-h{background:#16a34a}.lpd-m{background:#f59e0b}.lpd-l{background:#ef4444}
+
+/* ── BASICS SIDEBAR (today right col) ── */
+.wb-sidebar-title{font-size:12px;font-weight:600;color:var(--text-tertiary);margin-bottom:14px;letter-spacing:.02em;text-transform:uppercase}
+/* nudge card */
+.wb-nudge-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--text-primary);line-height:1.55;position:relative;animation:cardIn 200ms ease both}
+.wb-nudge-dismiss{position:absolute;top:10px;right:10px;border:none;background:none;font-size:14px;color:var(--text-tertiary);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1;transition:color 150ms ease}
+.wb-nudge-dismiss:hover{color:var(--text-primary)}
+.wb-nudge-link{color:var(--blue);text-decoration:underline;cursor:pointer;background:none;border:none;font:inherit;font-size:13px;padding:0;display:inline;transition:opacity 150ms ease}
+.wb-nudge-link:hover{opacity:.75}
+/* simple checklist */
+.wb-simple-list{display:flex;flex-direction:column;gap:0}
+.wb-simple-item{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity 150ms ease}
+.wb-simple-item:last-child{border-bottom:none}
+.wb-simple-item:hover{opacity:.7}
+.wb-simple-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border-strong);flex-shrink:0;transition:background 180ms ease,border-color 180ms ease;display:flex;align-items:center;justify-content:center}
+.wb-simple-dot.checked{background:#0d9488;border-color:#0d9488}
+.wb-simple-dot.checked::after{content:'';display:block;width:5px;height:3.5px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(.5px,-.5px)}
+.wb-simple-label{font-size:13px;color:var(--text-primary);font-weight:400;letter-spacing:-0.05px}
+.wb-simple-label.done{color:var(--text-tertiary);text-decoration:line-through}
+
+/* ── INSIGHTS VIEW ── */
+.insights-view{overflow-y:auto;padding:32px 36px;height:100%}
+.insights-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+.ins-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;animation:cardIn 200ms ease both;position:relative;overflow:hidden}
+.ins-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0}
+.ins-card.accent-blue::before{background:var(--blue)}
+.ins-card.accent-teal::before{background:var(--teal)}
+.ins-card.accent-amber::before{background:#f59e0b}
+.ins-card.accent-red::before{background:#ef4444}
+.ins-card-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.ins-card-val{font-size:32px;font-weight:500;color:var(--text-primary);letter-spacing:-0.8px;margin-bottom:4px;line-height:1}
+.ins-card-sub{font-size:12px;color:var(--text-secondary);font-weight:500}
+.ins-card-sub.good{color:#15803d}
+.ins-card-sub.warn{color:var(--amber)}
+.ins-card-sub.bad{color:var(--red)}
+.ins-section-title{font-size:15px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:14px;margin-top:4px}
+.ins-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+
+/* bar chart */
+.bar-chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.bar-chart-title{font-size:13px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px;margin-bottom:14px}
+.bar-chart-bars{display:flex;align-items:flex-end;gap:6px;height:72px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar-pair{display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center}
+.bar-seg{border-radius:3px 3px 0 0;min-width:8px;transition:height 400ms cubic-bezier(.4,0,.2,1)}
+.bar-day-label{font-size:10px;color:var(--text-tertiary);margin-top:5px;font-weight:500}
+.bar-legend{display:flex;gap:14px;margin-top:10px}
+.bar-legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-secondary);font-weight:500}
+.bar-legend-swatch{width:10px;height:10px;border-radius:2px}
+
+/* energy heatmap */
+.energy-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.energy-grid{display:grid;grid-template-columns:40px repeat(7,1fr);gap:3px;margin-top:8px}
+.energy-cell{height:22px;border-radius:4px;font-size:10px;display:flex;align-items:center;justify-content:center;color:transparent;transition:opacity 150ms ease;cursor:default}
+.energy-cell:hover{opacity:.75}
+.energy-row-label{font-size:10px;color:var(--text-tertiary);display:flex;align-items:center;justify-content:flex-end;padding-right:4px;font-weight:500}
+.energy-col-label{font-size:10px;color:var(--text-tertiary);text-align:center;font-weight:600}
+
+/* basics this week table */
+.wb-table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+.wb-table-title{font-size:13px;font-weight:600;color:var(--text-primary);letter-spacing:-0.1px;margin-bottom:14px}
+.wb-table-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.wb-table-row:last-child{border-bottom:none}
+.wb-table-label{font-size:13px;color:var(--text-secondary)}
+.wb-table-val{font-size:13px;font-weight:500;color:var(--text-primary)}
+.wb-table-val.warn{color:var(--amber)}
+.wb-table-val.bad{color:var(--red)}
+
+/* pattern insight cards — plain, no left border */
+.pattern-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;animation:cardIn 250ms ease both}
+.pattern-icon{font-size:15px;margin-bottom:8px;color:var(--text-tertiary)}
+.pattern-title{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px;margin-bottom:5px}
+.pattern-body{font-size:13px;color:var(--text-secondary);line-height:1.6}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:100;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:background 180ms ease}
+.modal-overlay.open{background:rgba(0,0,0,.5);pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--radius-lg);width:520px;max-width:95vw;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2);transform:scale(.92) translateY(14px);opacity:0;transition:transform 200ms cubic-bezier(.34,1.3,.64,1),opacity 170ms ease;will-change:transform,opacity}
+.modal-overlay.open .modal{transform:scale(1) translateY(0);opacity:1}
+.modal-top{padding:24px 28px 0}
+.modal-title-input{width:100%;font-size:20px;font-weight:500;border:none;border-bottom:2px solid var(--blue);padding:4px 0 10px;outline:none;color:var(--text-primary);letter-spacing:-0.3px;transition:border-color 150ms ease}
+.modal-title-input::placeholder{color:var(--text-tertiary)}
+.modal-body{padding:16px 28px}
+.modal-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.modal-row:last-child{border-bottom:none}
+.modal-icon{color:var(--text-tertiary);font-size:17px;width:24px;text-align:center;flex-shrink:0}
+.modal-field{flex:1;font-size:14px;color:var(--text-primary)}
+.effort-pills{display:flex;gap:6px;flex-wrap:wrap}
+.effort-pill{padding:6px 15px;border-radius:18px;border:1px solid var(--border-strong);background:transparent;font-size:13px;color:var(--text-primary);font-weight:500;transition:background 140ms ease,border-color 140ms ease,color 140ms ease,transform 120ms ease}
+.effort-pill:hover{background:var(--surface-raised)}
+.effort-pill:active{transform:scale(.95)}
+.effort-pill.sel{background:var(--blue-light);border-color:var(--blue-border);color:var(--blue);font-weight:600}
+.modal-footer{padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.modal-cancel{padding:8px 18px;border-radius:20px;border:none;background:transparent;color:var(--blue);font-size:14px;font-weight:500;transition:background 150ms ease}
+.modal-cancel:hover{background:var(--blue-light)}
+.modal-optimize{padding:9px 22px;border-radius:20px;border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.1px;display:flex;align-items:center;gap:6px;transition:background 150ms ease,transform 150ms ease}
+.modal-optimize:hover{background:#1765cc}
+.modal-optimize:active{transform:scale(.97)}
+
+/* ── RIGHT PANEL ── */
+.rp-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#f8fafc 0%,#ffffff 60%)}
+.rp-orb{width:26px;height:26px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rp-orb-inner{width:10px;height:10px;border-radius:50%;background:#fff}
+.rp-title{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px}
+.rp-close{margin-left:auto;border:none;background:transparent;color:var(--text-secondary);font-size:18px;line-height:1;padding:3px 7px;border-radius:50%;transition:background 150ms ease,transform 200ms ease}
+.rp-close:hover{background:var(--surface-raised);transform:rotate(90deg)}
+.rp-body{padding:20px}
+.rp-content-enter{animation:rpIn 170ms ease both}
+@keyframes rpIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.rp-task-name{font-size:16px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:4px}
+.rp-sub{font-size:13px;color:var(--text-secondary);margin-bottom:18px}
+.slot-card{border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:9px;cursor:pointer;transition:border-color 160ms ease,background 160ms ease,transform 150ms ease,box-shadow 160ms ease}
+.slot-card:hover{border-color:var(--blue-border);background:#fafbff;transform:translateX(3px);box-shadow:0 2px 10px rgba(26,115,232,.1)}
+.slot-card:active{transform:scale(.98)}
+.slot-card.selected{border-color:var(--blue);background:var(--blue-light);transform:translateX(4px)}
+.slot-time{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px}
+.slot-why{font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.4}
+.slot-pill-row{margin-top:8px}
+.confirm-btn{width:100%;padding:12px;border-radius:var(--radius-xl);border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.1px;margin-top:14px;transition:background 150ms ease,transform 150ms ease,opacity 150ms ease}
+.confirm-btn:hover{background:#1765cc}
+.confirm-btn:active{transform:scale(.98)}
+.confirm-btn:disabled{opacity:.6;cursor:default}
+.confirm-btn.confirming{background:var(--teal)}
+
+/* drift (demoted) */
+.drift-panel{padding:20px}
+.drift-header-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#ef4444;margin-bottom:6px}
+.drift-task-name{font-size:18px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:4px}
+.drift-count{font-size:13px;color:var(--text-secondary);margin-bottom:12px}
+.drift-insight{background:var(--red-light);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.55}
+.drift-insight strong{color:var(--text-primary);font-weight:600}
+.drift-action{border:1px solid var(--border);border-radius:var(--radius-md);padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background 150ms ease,border-color 150ms ease,transform 150ms ease}
+.drift-action:hover{background:var(--surface-raised);border-color:var(--border-strong);transform:translateX(3px)}
+.drift-action-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.drift-action-title{font-size:13px;font-weight:600;color:var(--text-primary)}
+.drift-action-sub{font-size:11px;color:var(--text-secondary);margin-top:2px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1f2937;color:#fff;padding:13px 22px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;pointer-events:none;opacity:0;letter-spacing:-0.1px;transition:transform 220ms cubic-bezier(.34,1.3,.64,1),opacity 200ms ease}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* ── IMPORT MODAL ── */
+.import-btn{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);font-size:13px;font-weight:600;letter-spacing:-0.1px;display:flex;align-items:center;gap:7px;transition:background 150ms ease,border-color 150ms ease,color 150ms ease,transform 150ms ease}
+.import-btn:hover{background:var(--surface-raised);border-color:var(--blue);color:var(--blue)}
+.import-btn:active{transform:scale(.97)}
+.import-modal{background:var(--surface);border-radius:var(--radius-lg);width:560px;max-width:96vw;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.2);transform:scale(.92) translateY(14px);opacity:0;transition:transform 200ms cubic-bezier(.34,1.3,.64,1),opacity 170ms ease;will-change:transform,opacity}
+.modal-overlay.open .import-modal{transform:scale(1) translateY(0);opacity:1}
+.import-modal-header{padding:22px 26px 18px;border-bottom:1px solid var(--border)}
+.import-modal-title{font-size:17px;font-weight:600;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:3px}
+.import-modal-sub{font-size:13px;color:var(--text-secondary)}
+.import-modal-body{padding:20px 24px}
+.import-modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+/* platform picker */
+.platform-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.platform-card{border:1.5px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 160ms ease,background 160ms ease,transform 150ms ease,box-shadow 150ms ease}
+.platform-card:hover{border-color:var(--blue-border);background:#fafbff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(26,115,232,.08)}
+.platform-card:active{transform:scale(.98)}
+.platform-card.selected{border:1.5px solid var(--blue);background:var(--blue-light)}
+.platform-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;letter-spacing:-0.5px}
+.platform-info{flex:1;min-width:0}
+.platform-name{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-0.2px}
+.platform-tagline{font-size:12px;color:var(--text-secondary);margin-top:2px;line-height:1.3}
+
+/* spinner */
+.import-spinner{width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 700ms linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.import-loading{display:flex;align-items:center;gap:12px;padding:20px 0;font-size:14px;color:var(--text-secondary);font-weight:500}
+
+/* task review list */
+.import-select-all-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.import-count{font-size:13px;font-weight:600;color:var(--text-secondary);letter-spacing:-0.1px}
+.import-select-all-btn{font-size:13px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background 150ms ease}
+.import-select-all-btn:hover{background:var(--blue-light)}
+.import-task-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);transition:background 150ms ease;border-radius:var(--radius-sm)}
+.import-task-row:last-child{border-bottom:none}
+.import-task-row:hover{background:var(--surface-raised)}
+.import-checkbox{width:17px;height:17px;border-radius:4px;border:1.5px solid var(--border-strong);background:var(--surface);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 150ms ease,border-color 150ms ease}
+.import-checkbox.checked{background:var(--blue);border-color:var(--blue)}
+.import-checkbox.checked::after{content:'';display:block;width:9px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.import-task-info{flex:1;min-width:0}
+.import-task-name{font-size:13px;font-weight:500;color:var(--text-primary);letter-spacing:-0.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.import-task-meta{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+.import-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;letter-spacing:.02em}
+.badge-due{background:#fef3c7;color:#92400e}
+.badge-high{background:var(--red-light);color:var(--red)}
+.badge-med{background:var(--amber-light);color:var(--amber)}
+.badge-source{background:var(--surface-raised);color:var(--text-tertiary);border:1px solid var(--border)}
+
+/* import queue in right panel */
+.import-queue-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.import-queue-item:last-child{border-bottom:none}
+.import-queue-num{width:20px;height:20px;border-radius:50%;background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.import-queue-name{font-size:13px;font-weight:500;color:var(--text-primary);flex:1;letter-spacing:-0.1px;line-height:1.35}
+.import-queue-slot{font-size:11px;color:var(--text-secondary);margin-top:2px}
+
+/* imported event badge on calendar */
+.import-source-badge{font-size:10px;font-weight:600;color:#7c3aed;background:rgba(124,58,237,.1);border-radius:3px;padding:1px 5px;margin-top:2px;display:inline-block;letter-spacing:.01em}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-logo">Cal</span>
+  <div class="topbar-nav">
+    <button class="topbar-btn active" id="nav-cal" onclick="switchView('cal')">Calendar</button>
+    <button class="topbar-btn" id="nav-today" onclick="switchView('today')">Today</button>
+    <button class="topbar-btn" id="nav-insights" onclick="switchView('insights')">Insights</button>
+  </div>
+  <div class="topbar-right">
+    <button class="import-btn" onclick="openImportModal()">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style="flex-shrink:0"><path d="M7.5 1v9M4 7l3.5 3.5L11 7M2 12h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Import tasks
+    </button>
+    <button class="topbar-new" onclick="openAddTask()">
+      <span style="font-size:20px;line-height:1">+</span> New task
+    </button>
+    <div class="avatar">AK</div>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <div class="sidebar">
+    <div class="mini-cal-header">
+      <span class="mini-month">April 2025</span>
+      <div style="display:flex;gap:2px">
+        <button class="mini-nav">‹</button>
+        <button class="mini-nav">›</button>
+      </div>
+    </div>
+    <div class="mini-grid" id="mini-grid"></div>
+    <div class="sidebar-divider"></div>
+
+    <!-- Weekly load summary in sidebar -->
+    <div class="load-summary">
+      <div class="load-summary-title">This week</div>
+      <div class="load-days" id="sidebar-load-bars"></div>
+      <div class="load-day-labels">
+        <div class="load-day-label">S</div>
+        <div class="load-day-label">M</div>
+        <div class="load-day-label">T</div>
+        <div class="load-day-label">W</div>
+        <div class="load-day-label">T</div>
+        <div class="load-day-label">F</div>
+        <div class="load-day-label">S</div>
+      </div>
+      <div class="load-legend">
+        <div class="load-legend-item"><div class="load-legend-dot" style="background:#0d9488"></div>Light</div>
+        <div class="load-legend-item"><div class="load-legend-dot" style="background:#f59e0b"></div>Moderate</div>
+        <div class="load-legend-item"><div class="load-legend-dot" style="background:#ef4444"></div>Heavy</div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">My calendars</div>
+    <div class="cal-chip"><div class="cal-dot" style="background:#1a73e8"></div>Alex Kim</div>
+    <div class="cal-chip"><div class="cal-dot" style="background:#0d9488"></div>Tasks</div>
+    <div class="cal-chip"><div class="cal-dot" style="background:#8e24aa"></div>Study groups</div>
+  </div>
+
+  <div class="main">
+
+    <!-- CALENDAR VIEW -->
+    <div class="view-layer visible" id="layer-cal">
+      <div class="week-view-wrap">
+        <div class="week-header" id="week-header"></div>
+        <div class="week-scroll">
+          <div class="week-grid" id="week-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TODAY VIEW -->
+    <div class="view-layer hidden" id="layer-today">
+      <div class="today-view">
+        <div class="today-left" id="today-left">
+          <div class="start-here">
+            <div class="sh-label">✦ Start here</div>
+            <div class="sh-title" id="sh-title">Algorithms problem set</div>
+            <div class="sh-meta" id="sh-meta">High priority · Due today · 2 hrs · Your best focus window right now</div>
+            <button class="sh-start-btn" onclick="showToast('Timer started — good luck!')">Start now</button>
+          </div>
+          <div class="tv-section-label">High-effort tasks today</div>
+          <div id="tv-high"></div>
+          <div class="tv-section-label">Light tasks</div>
+          <div id="tv-light"></div>
+        </div>
+        <!-- Wellbeing sidebar -->
+        <div class="today-right" id="today-wellbeing"></div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS VIEW -->
+    <div class="view-layer hidden" id="layer-insights">
+      <div class="insights-view" id="insights-view"></div>
+    </div>
+
+  </div>
+
+  <div class="right-panel" id="right-panel"></div>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-top">
+      <input class="modal-title-input" id="modal-task-input" type="text" placeholder="Task name" />
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <div class="modal-icon">⏱</div>
+        <div class="modal-field">
+          <div style="font-size:11px;color:#70757a;margin-bottom:4px;font-weight:500;letter-spacing:.04em;text-transform:uppercase">Estimated time</div>
+          <div class="effort-pills">
+            <button class="effort-pill" onclick="selectEffort(this,'30m')">30 min</button>
+            <button class="effort-pill sel" onclick="selectEffort(this,'1h')">1 hr</button>
+            <button class="effort-pill" onclick="selectEffort(this,'2h')">2 hrs</button>
+            <button class="effort-pill" onclick="selectEffort(this,'3h')">3 hrs</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-icon">⚑</div>
+        <div class="modal-field">
+          <div style="font-size:11px;color:#70757a;margin-bottom:4px;font-weight:500;letter-spacing:.04em;text-transform:uppercase">Priority</div>
+          <div class="effort-pills">
+            <button class="effort-pill sel" onclick="selectPriority(this,'high')">High</button>
+            <button class="effort-pill" onclick="selectPriority(this,'med')">Medium</button>
+            <button class="effort-pill" onclick="selectPriority(this,'low')">Low</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-optimize" onclick="runOptimize()">
+        <span style="font-size:16px;line-height:1">✦</span> Optimize schedule
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="import-overlay" onclick="if(event.target===this)closeImportModal()">
+  <div class="import-modal" id="import-modal">
+    <div id="import-modal-inner"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+const EVENTS=[
+  {id:1,title:'Algorithms problem set',day:1,startH:9,dur:2,color:'#1a73e8',bg:'#e8f0fe',effort:'2h',priority:'high',likelihood:'high',type:'deep',done:false,drift:false,driftCount:0},
+  {id:2,title:'Study group — Econ 201',day:1,startH:14,dur:1.5,color:'#8e24aa',bg:'#f3e8fd',effort:'1.5h',priority:'med',likelihood:'high',type:'light',done:false,drift:false,driftCount:0},
+  {id:3,title:'Portfolio update',day:0,startH:20,dur:2,color:'#ef4444',bg:'#fce8e6',effort:'2h',priority:'high',likelihood:'low',type:'deep',done:false,drift:true,driftCount:4},
+  {id:4,title:'Read: Chen et al. paper',day:2,startH:10,dur:1,color:'#0d9488',bg:'#e6f4ea',effort:'1h',priority:'med',likelihood:'med',type:'light',done:false,drift:false,driftCount:0},
+  {id:5,title:'Capstone outline draft',day:2,startH:13,dur:2,color:'#1a73e8',bg:'#e8f0fe',effort:'2h',priority:'high',likelihood:'high',type:'deep',done:false,drift:false,driftCount:0},
+  {id:6,title:'Reply to Prof. Martinez',day:3,startH:9,dur:.5,color:'#0d9488',bg:'#e6f4ea',effort:'30m',priority:'med',likelihood:'high',type:'light',done:false,drift:false,driftCount:0},
+  {id:7,title:'Review lecture slides',day:4,startH:15,dur:1,color:'#0d9488',bg:'#e6f4ea',effort:'1h',priority:'low',likelihood:'med',type:'light',done:false,drift:false,driftCount:0},
+];
+
+// Wellbeing blocks (meals, breaks, sleep) — shown as dashed on grid
+const WB_BLOCKS=[
+  {day:1,startH:12.5,dur:.5,label:'Lunch',color:'#0d9488'},
+  {day:2,startH:12,dur:.5,label:'Lunch',color:'#0d9488'},
+  {day:3,startH:12.5,dur:.5,label:'Lunch',color:'#0d9488'},
+];
+
+// Workload per day (hours of scheduled tasks)
+const DAY_LOAD=[1.5, 3.5, 5.5, 0.5, 1, 0, 0]; // Sun–Sat
+
+const SLOTS=[
+  {label:'Tomorrow (Wed), 9:00–10:00 AM',why:"You finish 90% of tasks before 10 AM — this is your clearest window.",likelihood:'high'},
+  {label:'Thu Apr 10, 10:00–11:00 AM',why:"Light schedule that day and you tend to focus well mid-morning.",likelihood:'med'},
+  {label:'Tonight, 8:00–9:00 PM',why:"Low completion rate after 7 PM — you'll feel more energized tomorrow.",likelihood:'low'},
+];
+
+const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_DATES=[6,7,8,9,10,11,12];
+let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false;
+
+// wellbeing check state
+let wbState={breakfast:true,lunch:false,break:false,sleep:true};
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+function lc(l){return l==='high'?'lp-high':l==='med'?'lp-med':'lp-low'}
+function ld(l){return l==='high'?'lpd-h':l==='med'?'lpd-m':'lpd-l'}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function lr(l){return l==='high'?"fits your usual focus hours":l==='med'?"you complete about half your tasks in this window":"you rarely finish tasks scheduled here"}
+function loadColor(hrs){return hrs>4.5?'#ef4444':hrs>2.5?'#f59e0b':'#0d9488'}
+function fmtH(h){const hr=Math.floor(h),min=Math.round((h-hr)*60),ap=hr<12?'AM':'PM',h12=hr%12||12;return min===0?`${h12} ${ap}`:`${h12}:${String(min).padStart(2,'0')} ${ap}`;}
+
+// ── MINI CAL ──────────────────────────────────────────────────────────
+function buildMiniCal(){
+  const g=document.getElementById('mini-grid');
+  ['S','M','T','W','T','F','S'].forEach(d=>{const e=document.createElement('div');e.className='mini-day label';e.textContent=d;g.appendChild(e);});
+  for(let i=0;i<2;i++){const b=document.createElement('div');b.className='mini-day';g.appendChild(b);}
+  for(let d=1;d<=30;d++){const e=document.createElement('div');e.className='mini-day'+(d===8?' today':'');e.textContent=d;g.appendChild(e);}
+}
+
+// ── SIDEBAR LOAD BARS ─────────────────────────────────────────────────
+function buildSidebarLoad(){
+  const c=document.getElementById('sidebar-load-bars');c.innerHTML='';
+  const maxH=6;
+  DAY_LOAD.forEach(h=>{
+    const bar=document.createElement('div');
+    bar.className='load-bar';
+    const pct=Math.min(h/maxH,1);
+    bar.style.height=(pct*100)+'%';
+    bar.style.background=loadColor(h);
+    bar.title=`${h} hrs`;
+    c.appendChild(bar);
+  });
+}
+
+// ── WEEK HEADER ───────────────────────────────────────────────────────
+function buildWeekHeader(){
+  const h=document.getElementById('week-header');
+  const sp=document.createElement('div');sp.className='wh-spacer';h.appendChild(sp);
+  const loadLabels=['Light: 1.5 hrs','Moderate: 3.5 hrs','Heavy: 5.5 hrs — over capacity','Light: 0.5 hrs','Light: 1 hr','Free day','Free day'];
+  DAY_NAMES.forEach((n,i)=>{
+    const d=document.createElement('div');d.className='wh-day';
+    const isToday=DAY_DATES[i]===8;
+    const color=loadColor(DAY_LOAD[i]);
+    d.innerHTML=`<div class="wh-day-name">${n}</div><div class="wh-day-num${isToday?' today':''}">${DAY_DATES[i]}</div><div class="wh-load-strip" style="background:${color};opacity:${DAY_LOAD[i]>0?.85:.15}" title="${loadLabels[i]}"></div>`;
+    d.addEventListener('click',()=>showDayLoadPanel(i));
+    h.appendChild(d);
+  });
+}
+
+// ── WEEK GRID ─────────────────────────────────────────────────────────
+function buildWeekGrid(){
+  const g=document.getElementById('week-grid');g.innerHTML='';
+  const lc2=document.createElement('div');lc2.style.cssText='display:flex;flex-direction:column;';
+  for(let h=0;h<24;h++){const e=document.createElement('div');e.className='hour-label';e.textContent=h===0?'':fmtH(h);lc2.appendChild(e);}
+  g.appendChild(lc2);
+  for(let di=0;di<7;di++){
+    const col=document.createElement('div');col.className='day-col'+(di===2?' today-col':'');col.style.minHeight='1152px';
+    for(let h=0;h<24;h++){const ln=document.createElement('div');ln.className='hour-line';ln.style.top=(h*48)+'px';col.appendChild(ln);}
+    if(di===2){const m=9*60+25;const nl=document.createElement('div');nl.className='now-line';nl.style.top=((m/60)*48)+'px';nl.innerHTML='<div class="now-dot"></div>';col.appendChild(nl);}
+    // wellbeing blocks
+    WB_BLOCKS.filter(b=>b.day===di).forEach(b=>{
+      const el=document.createElement('div');
+      el.className='wb-block';
+      el.style.cssText=`top:${b.startH*48}px;height:${b.dur*48-2}px;color:${b.color};border-color:${b.color};background:${b.color}18;`;
+      el.innerHTML=`<span style="font-weight:500">${b.label}</span>`;
+      col.appendChild(el);
+    });
+    // task events
+    EVENTS.filter(e=>e.day===di).forEach((ev,i)=>{
+      const el=buildEventEl(ev);el.style.animationDelay=(i*45)+'ms';col.appendChild(el);
+    });
+    g.appendChild(col);
+  }
+}
+
+function buildEventEl(ev){
+  const el=document.createElement('div');
+  el.className='cal-event event-pop'+(ev.drift?' drift':'');
+  el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:${ev.bg};color:${ev.color};border-left:3px solid ${ev.color};`;
+  el.innerHTML=`<div class="event-title">${ev.title}</div><div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>${ev.drift?'<div class="drift-badge">⟳ Drifting</div>':''}`;
+  el.addEventListener('click',()=>ev.drift?showDriftPanel(ev):showEventPanel(ev));
+  return el;
+}
+
+// ── VIEW SWITCH ───────────────────────────────────────────────────────
+function switchView(v){
+  if(v===view) return;
+  const layers={cal:'layer-cal',today:'layer-today',insights:'layer-insights'};
+  document.getElementById(layers[view]).classList.remove('visible');
+  document.getElementById(layers[view]).classList.add('hidden');
+  view=v;
+  const next=document.getElementById(layers[v]);
+  next.classList.remove('hidden');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>next.classList.add('visible')));
+  ['nav-cal','nav-today','nav-insights'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('nav-'+v).classList.add('active');
+  if(v==='today') buildTodayView();
+  if(v==='insights') buildInsightsView();
+  if(v==='cal') closePanel();
+}
+
+// ── TODAY VIEW ────────────────────────────────────────────────────────
+function buildTodayView(){
+  const high=document.getElementById('tv-high'),light=document.getElementById('tv-light');
+  high.innerHTML='';light.innerHTML='';
+  const todayEvs=EVENTS.filter(e=>e.day===2&&!e.done);
+  const star=todayEvs.find(e=>e.priority==='high')||todayEvs[0];
+  if(star){document.getElementById('sh-title').textContent=star.title;document.getElementById('sh-meta').textContent=`High priority · Due today · ${star.effort} · Your best focus window right now`;}
+  todayEvs.forEach((ev,i)=>{
+    if(ev===star) return;
+    const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=(i*65+80)+'ms';
+    div.onclick=()=>{switchView('cal');setTimeout(()=>ev.drift?showDriftPanel(ev):showEventPanel(ev),200);};
+    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${fmtH(ev.startH)} · ${ev.effort}</div></div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
+    (ev.type==='deep'?high:light).appendChild(div);
+  });
+  EVENTS.filter(e=>e.day!==2&&e.type==='light').slice(0,2).forEach((ev,i)=>{
+    const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=((i+3)*65+80)+'ms';
+    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${ev.effort} · Could do any time</div></div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
+    light.appendChild(div);
+  });
+  buildWellbeingSidebar();
+}
+
+function buildWellbeingSidebar(){
+  const wb=document.getElementById('today-wellbeing');
+  const nudgeDismissed=window._nudgeDismissed||false;
+
+  const items=[
+    {key:'breakfast',label:'Breakfast'},
+    {key:'lunch',label:'Lunch break'},
+    {key:'break',label:'Afternoon break'},
+    {key:'sleep',label:'Sleep ~11 PM'},
+  ];
+
+  // Pick one nudge based on state
+  let nudgeHtml='';
+  if(!nudgeDismissed){
+    if(!wbState.lunch&&!wbState.break){
+      nudgeHtml=`<div class="wb-nudge-card">
+        <button class="wb-nudge-dismiss" onclick="window._nudgeDismissed=true;buildWellbeingSidebar()">✕</button>
+        You have 5.5 hrs of tasks today with no break.
+        <br><button class="wb-nudge-link" onclick="addWbBlock('lunch')">Add lunch at 12:30 PM →</button>
+      </div>`;
+    } else if(!wbState.lunch){
+      nudgeHtml=`<div class="wb-nudge-card">
+        <button class="wb-nudge-dismiss" onclick="window._nudgeDismissed=true;buildWellbeingSidebar()">✕</button>
+        No lunch block on your calendar today.
+        <br><button class="wb-nudge-link" onclick="addWbBlock('lunch')">Add lunch at 12:30 PM →</button>
+      </div>`;
+    } else if(wbState.lunch&&wbState.break&&wbState.breakfast){
+      nudgeHtml=`<div class="wb-nudge-card">
+        <button class="wb-nudge-dismiss" onclick="window._nudgeDismissed=true;buildWellbeingSidebar()">✕</button>
+        Light day — good time to tackle something you've been avoiding.
+      </div>`;
+    }
+  }
+
+  wb.innerHTML=`
+    <div class="wb-sidebar-title">Today's basics</div>
+    ${nudgeHtml}
+    <div class="wb-simple-list">
+      ${items.map(item=>{
+        const done=wbState[item.key];
+        return `<div class="wb-simple-item" onclick="toggleWb('${item.key}')">
+          <div class="wb-simple-dot${done?' checked':''}"></div>
+          <span class="wb-simple-label${done?' done':''}">${item.label}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function toggleWb(key){
+  wbState[key]=!wbState[key];
+  buildWellbeingSidebar();
+  if(wbState[key]) showToast(`${key==='breakfast'?'Breakfast':key==='lunch'?'Lunch break':key==='break'?'Afternoon break':'Sleep'} marked done`);
+}
+
+function addWbBlock(key){
+  wbState[key]=true;
+  if(key==='lunch') WB_BLOCKS.push({day:2,startH:12.5,dur:.5,label:'Lunch',color:'#0d9488'});
+  if(key==='break') WB_BLOCKS.push({day:2,startH:15,dur:.25,label:'Break',color:'#0d9488'});
+  window._nudgeDismissed=false;
+  buildWellbeingSidebar();
+  buildWeekGrid();
+  showToast('Added to your calendar');
+}
+
+// ── INSIGHTS VIEW ─────────────────────────────────────────────────────
+function buildInsightsView(){
+  const v=document.getElementById('insights-view');
+
+  // energy heatmap data: rows=time slots, cols=days, val 0–4
+  const energyData=[
+    [1,1,2,0,1,0,0], // 7am
+    [2,3,4,1,3,0,0], // 9am (peak)
+    [2,3,3,1,2,0,0], // 11am
+    [1,2,2,0,1,0,0], // 1pm
+    [1,1,2,0,1,0,0], // 3pm
+    [0,1,1,0,0,0,0], // 7pm
+  ];
+  const eLabels=['7 AM','9 AM','11 AM','1 PM','3 PM','7 PM'];
+  const energyColors=['#f1f3f4','#c8e6c9','#66bb6a','#43a047','#2e7d32'];
+
+  const barData=[
+    {day:'S',planned:1,done:1},{day:'M',planned:3.5,done:3},{day:'T',planned:5.5,done:3.5},
+    {day:'W',planned:.5,done:.5},{day:'T',planned:1,done:0},{day:'F',planned:0,done:0},{day:'S',planned:0,done:0}
+  ];
+  const maxBar=6;
+
+  v.innerHTML=`
+    <div style="font-size:18px;font-weight:400;color:#202124;margin-bottom:20px">Your week at a glance</div>
+
+    <div class="insights-grid">
+      <div class="ins-card accent-blue" style="animation-delay:0ms">
+        <div class="ins-card-label">Tasks done</div>
+        <div class="ins-card-val">8 / 12</div>
+        <div class="ins-card-sub good">↑ 2 more than last week</div>
+      </div>
+      <div class="ins-card accent-teal" style="animation-delay:60ms">
+        <div class="ins-card-label">Lunch breaks</div>
+        <div class="ins-card-val">3 / 5</div>
+        <div class="ins-card-sub warn">Missed Mon & Fri</div>
+      </div>
+      <div class="ins-card accent-amber" style="animation-delay:120ms">
+        <div class="ins-card-label">Overloaded days</div>
+        <div class="ins-card-val">1</div>
+        <div class="ins-card-sub warn">Tuesday: 5.5 hrs</div>
+      </div>
+      <div class="ins-card accent-blue" style="animation-delay:180ms">
+        <div class="ins-card-label">Deep work hrs</div>
+        <div class="ins-card-val">7.5</div>
+        <div class="ins-card-sub good">Goal: 8 hrs/week</div>
+      </div>
+      <div class="ins-card accent-teal" style="animation-delay:240ms">
+        <div class="ins-card-label">Breaks taken</div>
+        <div class="ins-card-val">3 / 5</div>
+        <div class="ins-card-sub bad">Mon, Fri skipped</div>
+      </div>
+      <div class="ins-card accent-amber" style="animation-delay:300ms">
+        <div class="ins-card-label">Follow-through</div>
+        <div class="ins-card-val">67%</div>
+        <div class="ins-card-sub warn">Goal: 75%</div>
+      </div>
+    </div>
+
+    <div class="ins-row">
+      <div class="bar-chart-wrap">
+        <div class="bar-chart-title">Planned vs. completed</div>
+        <div class="bar-chart-bars">
+          ${barData.map(d=>{
+            const ph=Math.round((d.planned/maxBar)*72);
+            const dh=Math.round((d.done/maxBar)*72);
+            const overload=d.planned>4.5;
+            return `<div class="bar-col">
+              <div class="bar-pair" style="height:${ph}px;align-items:flex-end">
+                <div class="bar-seg" style="height:${ph}px;width:12px;background:${overload?'#fce8e6':'#e8f0fe'}"></div>
+                <div class="bar-seg" style="height:${dh}px;width:12px;background:${overload?'#ef4444':'#1a73e8'}"></div>
+              </div>
+              <div class="bar-day-label">${d.day}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="bar-legend">
+          <div class="bar-legend-item"><div class="bar-legend-swatch" style="background:#e8f0fe;border:1px solid #1a73e8"></div>Planned</div>
+          <div class="bar-legend-item"><div class="bar-legend-swatch" style="background:#1a73e8"></div>Completed</div>
+          <div class="bar-legend-item"><div class="bar-legend-swatch" style="background:#ef4444"></div>Overloaded</div>
+        </div>
+      </div>
+
+      <div class="energy-wrap">
+        <div class="bar-chart-title">Your focus windows</div>
+        <div style="font-size:12px;color:#5f6368;margin-bottom:8px">Based on when you complete tasks</div>
+        <div class="energy-grid">
+          <div></div>
+          ${DAY_NAMES.map(n=>`<div class="energy-col-label">${n[0]}</div>`).join('')}
+          ${energyData.map((row,ri)=>`
+            <div class="energy-row-label">${eLabels[ri]}</div>
+            ${row.map(v2=>`<div class="energy-cell" style="background:${energyColors[v2]};opacity:${v2===0?.25:1}" title="Completion rate: ${['0%','25%','50%','75%','90+%'][v2]}"></div>`).join('')}
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:8px">
+          <div style="font-size:11px;color:#9aa0a6">Low</div>
+          ${[0,1,2,3,4].map(i=>`<div style="width:14px;height:10px;border-radius:2px;background:${energyColors[i]};opacity:${i===0?.35:1}"></div>`).join('')}
+          <div style="font-size:11px;color:#9aa0a6">High</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ins-row">
+      <div class="wb-table-card">
+        <div class="wb-table-title">Basics this week</div>
+        <div class="wb-table-row">
+          <span class="wb-table-label">Breakfast</span>
+          <span class="wb-table-val">5 of 5 days</span>
+        </div>
+        <div class="wb-table-row">
+          <span class="wb-table-label">Lunch breaks</span>
+          <span class="wb-table-val warn">3 of 5 days</span>
+        </div>
+        <div class="wb-table-row">
+          <span class="wb-table-label">Afternoon breaks</span>
+          <span class="wb-table-val bad">2 of 5 days</span>
+        </div>
+        <div class="wb-table-row">
+          <span class="wb-table-label">Sleep (avg)</span>
+          <span class="wb-table-val warn">7.2 hrs</span>
+        </div>
+        <div class="wb-table-row">
+          <span class="wb-table-label">Movement</span>
+          <span class="wb-table-val bad">Not this week</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="pattern-card" style="animation-delay:100ms">
+          <div class="pattern-icon">↓</div>
+          <div class="pattern-title">Evening tasks rarely get done</div>
+          <div class="pattern-body">Tasks you schedule after 7 PM complete only 22% of the time. Your 9–11 AM window has an 88% rate — that's where hard work actually lands.</div>
+        </div>
+        <div class="pattern-card" style="animation-delay:180ms">
+          <div class="pattern-icon">↔</div>
+          <div class="pattern-title">Tuesday is consistently your heaviest day</div>
+          <div class="pattern-body">When Tuesday exceeds 5 hrs, your Wednesday completion drops noticeably. Wednesday morning is almost always free — consider moving one task there.</div>
+        </div>
+        <div class="pattern-card" style="animation-delay:260ms">
+          <div class="pattern-icon">○</div>
+          <div class="pattern-title">Skipping lunch affects your afternoons</div>
+          <div class="pattern-body">On days with no midday break, your 2–4 PM task completion is meaningfully lower. Even 20 minutes helps.</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── PANELS ────────────────────────────────────────────────────────────
+function showDayLoadPanel(dayIdx){
+  const load=DAY_LOAD[dayIdx];
+  const events=EVENTS.filter(e=>e.day===dayIdx);
+  const color=loadColor(load);
+  const status=load>4.5?'Heavy load':load>2.5?'Moderate load':'Light day';
+  const statusDetail=load>4.5?'This day exceeds your realistic focus capacity. Consider moving a task to Wednesday, which is free.':load>2.5?'Manageable but watch for back-to-back deep work blocks.':'Good balance — room to add tasks if needed.';
+
+  openPanel(`
+    <div class="rp-header">
+      <div class="rp-orb" style="background:${color}"><div class="rp-orb-inner"></div></div>
+      <div class="rp-title">${DAY_NAMES[dayIdx]}, Apr ${DAY_DATES[dayIdx]}</div>
+      <button class="rp-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="rp-body rp-content-enter">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-size:26px;font-weight:400;color:${color}">${load}h</div>
+        <div>
+          <div style="font-size:14px;font-weight:500;color:#202124">${status}</div>
+          <div style="font-size:12px;color:#5f6368">of ~5 hr realistic capacity</div>
+        </div>
+      </div>
+      <div style="height:6px;background:#f1f3f4;border-radius:3px;margin-bottom:6px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(load/5*100,100)}%;background:${color};border-radius:3px;transition:width 500ms ease"></div>
+      </div>
+      <div style="font-size:12px;color:#5f6368;margin-bottom:16px;line-height:1.5">${statusDetail}</div>
+      ${events.length?`
+        <div style="font-size:12px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tasks this day</div>
+        ${events.map(ev=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f3f4">
+            <div style="width:8px;height:8px;border-radius:50%;background:${ev.color};flex-shrink:0"></div>
+            <div style="flex:1;font-size:13px;color:#202124">${ev.title}</div>
+            <div style="font-size:12px;color:#5f6368">${ev.effort}</div>
+          </div>`).join('')}
+      `:'<div style="font-size:13px;color:#5f6368">No tasks — a free day.</div>'}
+      ${load>4.5?`<button style="width:100%;padding:10px;border-radius:20px;border:none;background:#1a73e8;color:#fff;font-size:14px;font-weight:500;margin-top:14px;transition:background 150ms ease" onmouseover="this.style.background='#1765cc'" onmouseout="this.style.background='#1a73e8'" onclick="closePanel();showToast('Opening optimize to move a task…')">Help me rebalance this day</button>`:''}
+    </div>`);
+}
+
+function showEventPanel(ev){
+  openPanel(`
+    <div class="rp-header">
+      <div class="rp-orb"><div class="rp-orb-inner"></div></div>
+      <div class="rp-title">${ev.title}</div>
+      <button class="rp-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="rp-body rp-content-enter">
+      <div style="font-size:13px;color:#5f6368;margin-bottom:16px">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)} · ${ev.effort}</div>
+      <div style="font-size:13px;font-weight:500;color:#202124;margin-bottom:8px">Completion likelihood</div>
+      <div class="likelihood-pill ${lc(ev.likelihood)}" style="font-size:13px;padding:5px 12px;margin-bottom:16px;display:inline-flex">
+        <div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)} — ${lr(ev.likelihood)}
+      </div>
+      <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openAddTask('${ev.title}')">Reschedule with optimize</button>
+      <button style="width:100%;padding:10px;border-radius:20px;border:none;background:#fce8e6;color:#c5221f;font-size:14px;font-weight:500;transition:background 150ms ease" onmouseover="this.style.background='#f5c6c2'" onmouseout="this.style.background='#fce8e6'" onclick="closePanel();showToast('Task removed.')">Remove task</button>
+    </div>`);
+}
+
+function showDriftPanel(ev){
+  driftEv=ev;
+  openPanel(`
+    <div class="rp-header">
+      <div class="rp-orb" style="background:#ef4444"><div class="rp-orb-inner"></div></div>
+      <div class="rp-title">Needs attention</div>
+      <button class="rp-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="drift-panel rp-content-enter">
+      <div class="drift-header-label">⟳ Moved ${ev.driftCount} times</div>
+      <div class="drift-task-name">${ev.title}</div>
+      <div class="drift-count">Last scheduled Sunday evening — not started.</div>
+      <div class="drift-insight"><strong>Pattern noticed:</strong> Evening blocks haven't been working for this task. Your completion rate after 7 PM is under 20%.</div>
+      <div style="font-size:13px;font-weight:500;color:#5f6368;margin-bottom:8px">What would you like to do?</div>
+      <div class="drift-action" onclick="driftReschedule()">
+        <div class="drift-action-icon" style="background:#e8f0fe">📅</div>
+        <div><div class="drift-action-title">Reschedule to a better time</div><div class="drift-action-sub">Agent finds your next strong window</div></div>
+      </div>
+      <div class="drift-action" onclick="driftBreak()">
+        <div class="drift-action-icon" style="background:#e6f4ea">✂️</div>
+        <div><div class="drift-action-title">Break into smaller steps</div><div class="drift-action-sub">Split into 3 × 40-min sessions</div></div>
+      </div>
+      <div class="drift-action" onclick="driftRemove()">
+        <div class="drift-action-icon" style="background:#f1f3f4">🗑</div>
+        <div><div class="drift-action-title">Remove this task</div><div class="drift-action-sub">It may no longer be relevant</div></div>
+      </div>
+    </div>`);
+}
+
+function openPanel(html){
+  const rp=document.getElementById('right-panel');
+  rp.innerHTML=html;
+  if(!panelOpen){rp.classList.add('open');panelOpen=true;}
+}
+function closePanel(){
+  const rp=document.getElementById('right-panel');
+  if(!panelOpen) return;
+  rp.classList.add('closing');rp.classList.remove('open');
+  setTimeout(()=>{rp.classList.remove('closing');rp.innerHTML='';panelOpen=false;},210);
+}
+
+function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
+function driftBreak(){
+  const base=driftEv;if(!base) return;closePanel();
+  setTimeout(()=>{
+    [1,2,3].forEach((d,i)=>EVENTS.push({id:100+i,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0}));
+    const idx=EVENTS.findIndex(e=>e.id===base.id);if(idx>-1) EVENTS.splice(idx,1);
+    buildWeekGrid();showToast('Split into 3 sessions across Mon–Wed 9 AM.');
+  },220);
+}
+function driftRemove(){
+  if(!driftEv) return;
+  const idx=EVENTS.findIndex(e=>e.id===driftEv.id);if(idx>-1) EVENTS.splice(idx,1);
+  buildWeekGrid();closePanel();showToast('Task removed from your calendar.');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────
+function openAddTask(prefill=''){
+  document.getElementById('modal-overlay').classList.add('open');
+  const inp=document.getElementById('modal-task-input');inp.value=prefill;
+  setTimeout(()=>inp.focus(),220);
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function selectEffort(btn,val){selEffort=val;btn.closest('.effort-pills').querySelectorAll('.effort-pill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+function selectPriority(btn,val){selPriority=val;btn.closest('.effort-pills').querySelectorAll('.effort-pill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+
+function runOptimize(){
+  const name=document.getElementById('modal-task-input').value.trim()||'New task';
+  closeModal();selSlot=0;
+  if(view!=='cal') switchView('cal');
+  setTimeout(()=>{
+    openPanel(`
+      <div class="rp-header">
+        <div class="rp-orb"><div class="rp-orb-inner"></div></div>
+        <div class="rp-title">Smart scheduling</div>
+        <button class="rp-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="rp-body rp-content-enter">
+        <div class="rp-task-name">${name}</div>
+        <div class="rp-sub">3 best times based on your patterns</div>
+        ${SLOTS.map((s,i)=>`
+          <div class="slot-card${i===0?' selected':''}" id="slot-${i}" onclick="selectSlot(${i})">
+            <div class="slot-time">${s.label}</div>
+            <div class="slot-why">${s.why}</div>
+            <div class="slot-pill-row">
+              <div class="likelihood-pill ${lc(s.likelihood)}" style="display:inline-flex">
+                <div class="lp-dot ${ld(s.likelihood)}"></div>${cap(s.likelihood)} likelihood
+              </div>
+            </div>
+          </div>`).join('')}
+        <button class="confirm-btn" id="confirm-btn" onclick="confirmSlot('${name}')">Confirm: ${SLOTS[0].label.split(',')[0]}</button>
+      </div>`);
+  },view==='cal'?80:300);
+}
+
+function selectSlot(i){
+  selSlot=i;
+  document.querySelectorAll('.slot-card').forEach((c,j)=>c.classList.toggle('selected',j===i));
+  const btn=document.getElementById('confirm-btn');
+  if(btn) btn.textContent=`Confirm: ${SLOTS[i].label.split(',')[0]}`;
+}
+
+function confirmSlot(name){
+  const btn=document.getElementById('confirm-btn');
+  if(btn){btn.textContent='Adding…';btn.classList.add('confirming');btn.disabled=true;}
+  setTimeout(()=>{
+    const slot=SLOTS[selSlot];
+    const dayMap=[2,3,4],hourMap=[9,10,20];
+    EVENTS.push({id:Date.now(),title:name,day:dayMap[selSlot],startH:hourMap[selSlot],dur:selEffort==='30m'?.5:selEffort==='1h'?1:selEffort==='2h'?2:3,color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0});
+    buildWeekGrid();closePanel();showToast(`"${name}" added — ${slot.label.split(',')[0]}`);
+  },420);
+}
+
+let toastT;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+// ── IMPORT FEATURE ────────────────────────────────────────────────────
+
+const PLATFORMS=[
+  {id:'apple',name:'Apple Reminders',tagline:'From your iPhone & Mac',color:'#ef4444',bg:'#fef2f2',initial:'',svg:'<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="5" fill="#ef4444"/><path d="M11 4.5a2.8 2.8 0 0 0 2.8-2.8" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><ellipse cx="11" cy="12" rx="4.5" ry="5.5" fill="#fff"/><path d="M8.5 12c0-1.4.8-2.5 2.5-2.5" stroke="#ef4444" stroke-width="1.2" stroke-linecap="round"/></svg>'},
+  {id:'google',name:'Google Tasks',tagline:'Synced with your Google account',color:'#1a73e8',bg:'#e8f0fe',initial:'',svg:'<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="5" fill="#1a73e8"/><rect x="6" y="7" width="10" height="1.5" rx=".75" fill="#fff"/><rect x="6" y="10.25" width="7" height="1.5" rx=".75" fill="#fff"/><rect x="6" y="13.5" width="8.5" height="1.5" rx=".75" fill="#fff"/></svg>'},
+  {id:'todoist',name:'Todoist',tagline:'All your projects & priorities',color:'#ef4444',bg:'#fef2f2',initial:'',svg:'<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="5" fill="#db4035"/><path d="M5 8l4 4 8-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13.5l4 4 8-6" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {id:'notion',name:'Notion',tagline:'From your databases & to-dos',color:'#000',bg:'#f9f9f9',initial:'',svg:'<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="5" fill="#191919"/><text x="6" y="16" font-family="Georgia,serif" font-size="13" font-weight="700" fill="white">N</text></svg>'},
+];
+
+const IMPORT_TASKS_BY_PLATFORM={
+  apple:[
+    {id:'a1',name:'Review internship applications',due:'Apr 12',priority:'high'},
+    {id:'a2',name:'Call mom back',due:null,priority:'none'},
+    {id:'a3',name:'Pick up prescription',due:'Apr 9',priority:'med'},
+    {id:'a4',name:'Finish problem set 4',due:'Apr 10',priority:'high'},
+    {id:'a5',name:'Renew student transit pass',due:null,priority:'none'},
+    {id:'a6',name:'Email financial aid office',due:'Apr 11',priority:'med'},
+    {id:'a7',name:'Read assigned chapters for Econ',due:'Apr 9',priority:'med'},
+  ],
+  google:[
+    {id:'g1',name:'Submit housing application',due:'Apr 15',priority:'high'},
+    {id:'g2',name:'Update LinkedIn profile',due:null,priority:'none'},
+    {id:'g3',name:'Draft cover letter — Google internship',due:'May 1',priority:'high'},
+    {id:'g4',name:'Schedule dentist appointment',due:null,priority:'none'},
+    {id:'g5',name:'Review midterm feedback',due:'Apr 10',priority:'med'},
+    {id:'g6',name:'Buy birthday gift for roommate',due:'Apr 13',priority:'none'},
+    {id:'g7',name:'Finish data structures homework',due:'Apr 11',priority:'high'},
+    {id:'g8',name:'Respond to study group Slack',due:null,priority:'none'},
+  ],
+  todoist:[
+    {id:'t1',name:'Weekly review — projects & goals',due:'Apr 12',priority:'med'},
+    {id:'t2',name:'Research grad school programs',due:null,priority:'high'},
+    {id:'t3',name:'Fix bug in personal website',due:null,priority:'med'},
+    {id:'t4',name:'Read "Deep Work" chapter 3',due:'Apr 11',priority:'none'},
+    {id:'t5',name:'Capstone presentation slide deck',due:'Apr 18',priority:'high'},
+    {id:'t6',name:'Follow up with research advisor',due:'Apr 10',priority:'high'},
+    {id:'t7',name:'Meal prep for the week',due:'Apr 13',priority:'none'},
+  ],
+  notion:[
+    {id:'n1',name:'Update project tracker — CS capstone',due:'Apr 11',priority:'high'},
+    {id:'n2',name:'Write weekly reflection journal',due:null,priority:'none'},
+    {id:'n3',name:'Outline summer research proposal',due:'Apr 20',priority:'high'},
+    {id:'n4',name:'Add citations to lit review',due:'Apr 12',priority:'med'},
+    {id:'n5',name:'Review team meeting notes',due:null,priority:'none'},
+    {id:'n6',name:'Archive old class notes',due:null,priority:'none'},
+    {id:'n7',name:'Plan April study schedule',due:'Apr 9',priority:'med'},
+    {id:'n8',name:'Compile resources for final exam',due:'Apr 25',priority:'high'},
+  ],
+};
+
+// Auto-assign imported tasks to calendar slots
+const IMPORT_SLOTS=[
+  {day:3,startH:10,label:'Thu Apr 10, 10 AM'},
+  {day:3,startH:14,label:'Thu Apr 10, 2 PM'},
+  {day:4,startH:9,label:'Fri Apr 11, 9 AM'},
+  {day:4,startH:13,label:'Fri Apr 11, 1 PM'},
+  {day:5,startH:10,label:'Sat Apr 12, 10 AM'},
+  {day:5,startH:14,label:'Sat Apr 12, 2 PM'},
+  {day:1,startH:11,label:'Mon Apr 14, 11 AM'},
+  {day:2,startH:15,label:'Tue Apr 15, 3 PM'},
+];
+
+let importStep=1;
+let importPlatform=null;
+let importChecked=new Set();
+let importTasks=[];
+
+function openImportModal(){
+  importStep=1; importPlatform=null; importChecked=new Set();
+  renderImportStep1();
+  document.getElementById('import-overlay').classList.add('open');
+}
+function closeImportModal(){
+  document.getElementById('import-overlay').classList.remove('open');
+}
+
+function renderImportStep1(){
+  document.getElementById('import-modal-inner').innerHTML=`
+    <div class="import-modal-header">
+      <div class="import-modal-title">Import tasks</div>
+      <div class="import-modal-sub">Choose a platform to pull tasks from</div>
+    </div>
+    <div class="import-modal-body">
+      <div class="platform-grid" id="platform-grid">
+        ${PLATFORMS.map(p=>`
+          <div class="platform-card" id="plat-${p.id}" onclick="selectPlatform('${p.id}')">
+            <div class="platform-logo" style="background:${p.bg}">${p.svg}</div>
+            <div class="platform-info">
+              <div class="platform-name">${p.name}</div>
+              <div class="platform-tagline">${p.tagline}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="import-modal-footer">
+      <button class="modal-cancel" onclick="closeImportModal()">Cancel</button>
+      <button class="modal-optimize" id="connect-btn" disabled onclick="startFakeConnect()" style="opacity:.45;cursor:default">
+        Connect &amp; import
+      </button>
+    </div>`;
+}
+
+function selectPlatform(id){
+  importPlatform=id;
+  document.querySelectorAll('.platform-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('plat-'+id).classList.add('selected');
+  const btn=document.getElementById('connect-btn');
+  btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer';
+}
+
+function startFakeConnect(){
+  if(!importPlatform) return;
+  const p=PLATFORMS.find(x=>x.id===importPlatform);
+  document.getElementById('import-modal-inner').innerHTML=`
+    <div class="import-modal-header">
+      <div class="import-modal-title">Import tasks</div>
+      <div class="import-modal-sub">&nbsp;</div>
+    </div>
+    <div class="import-modal-body">
+      <div class="import-loading">
+        <div class="import-spinner"></div>
+        <span>Connecting to ${p.name}…</span>
+      </div>
+    </div>
+    <div class="import-modal-footer"><span></span></div>`;
+  setTimeout(()=>renderImportStep2(),1200);
+}
+
+function renderImportStep2(){
+  const p=PLATFORMS.find(x=>x.id===importPlatform);
+  importTasks=IMPORT_TASKS_BY_PLATFORM[importPlatform]||[];
+  importChecked=new Set();
+  updateImportStep2();
+}
+
+function updateImportStep2(){
+  const p=PLATFORMS.find(x=>x.id===importPlatform);
+  const total=importTasks.length;
+  const selCount=importChecked.size;
+  const allSel=selCount===total;
+
+  document.getElementById('import-modal-inner').innerHTML=`
+    <div class="import-modal-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="platform-logo" style="background:${p.bg};width:32px;height:32px;border-radius:8px;font-size:15px">${p.svg}</div>
+        <div>
+          <div class="import-modal-title" style="font-size:15px">${p.name} — ${total} tasks found</div>
+          <div class="import-modal-sub">Select tasks to schedule with Cal</div>
+        </div>
+      </div>
+    </div>
+    <div class="import-modal-body" style="padding:16px 24px;max-height:340px;overflow-y:auto">
+      <div class="import-select-all-row">
+        <span class="import-count">${selCount} of ${total} selected</span>
+        <button class="import-select-all-btn" onclick="toggleSelectAll()">${allSel?'Deselect all':'Select all'}</button>
+      </div>
+      ${importTasks.map(t=>{
+        const chk=importChecked.has(t.id);
+        return `<div class="import-task-row" onclick="toggleImportTask('${t.id}')">
+          <div class="import-checkbox${chk?' checked':''}" id="chk-${t.id}"></div>
+          <div class="import-task-info">
+            <div class="import-task-name">${t.name}</div>
+            <div class="import-task-meta">
+              ${t.due?`<span class="import-badge badge-due">Due ${t.due}</span>`:''}
+              ${t.priority==='high'?'<span class="import-badge badge-high">High</span>':t.priority==='med'?'<span class="import-badge badge-med">Medium</span>':''}
+              <span class="import-badge badge-source">From ${p.name}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="import-modal-footer">
+      <button class="modal-cancel" onclick="closeImportModal()">Cancel</button>
+      <button class="modal-optimize" id="schedule-btn" ${selCount===0?'disabled style="opacity:.45;cursor:default"':''} onclick="runImportSchedule()">
+        Schedule selected with Cal ✦
+      </button>
+    </div>`;
+}
+
+function toggleImportTask(id){
+  if(importChecked.has(id)) importChecked.delete(id);
+  else importChecked.add(id);
+  updateImportStep2();
+}
+
+function toggleSelectAll(){
+  if(importChecked.size===importTasks.length) importChecked=new Set();
+  else importChecked=new Set(importTasks.map(t=>t.id));
+  updateImportStep2();
+}
+
+function runImportSchedule(){
+  const selected=importTasks.filter(t=>importChecked.has(t.id));
+  if(!selected.length) return;
+  closeImportModal();
+  const p=PLATFORMS.find(x=>x.id===importPlatform);
+
+  setTimeout(()=>{
+    // Build assigned slots
+    const assignments=selected.map((t,i)=>({
+      task:t,
+      slot:IMPORT_SLOTS[i%IMPORT_SLOTS.length],
+    }));
+
+    openPanel(`
+      <div class="rp-header">
+        <div class="rp-orb" style="background:#7c3aed"><div class="rp-orb-inner"></div></div>
+        <div class="rp-title">Scheduling ${selected.length} task${selected.length>1?'s':''}</div>
+        <button class="rp-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="rp-body rp-content-enter">
+        <div class="rp-sub" style="margin-bottom:14px">From ${p.name} · assigned to your best available windows</div>
+        <div style="margin-bottom:16px">
+          ${assignments.map((a,i)=>`
+            <div class="import-queue-item">
+              <div class="import-queue-num">${i+1}</div>
+              <div>
+                <div class="import-queue-name">${a.task.name}</div>
+                <div class="import-queue-slot">→ ${a.slot.label}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+        <button class="confirm-btn" onclick="confirmImport()">Confirm all ${selected.length} tasks</button>
+        <div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:10px;line-height:1.5">
+          Times chosen based on your focus patterns.<br>Tap any event to reschedule.
+        </div>
+      </div>`);
+
+    // Store for confirm step
+    window._pendingImport={assignments,platform:p};
+  },80);
+}
+
+function confirmImport(){
+  const {assignments,platform}=window._pendingImport||{};
+  if(!assignments) return;
+  assignments.forEach(a=>{
+    const slot=a.slot;
+    const dur=a.task.priority==='high'?1.5:a.task.priority==='med'?1:.5;
+    EVENTS.push({
+      id:Date.now()+Math.random(),
+      title:a.task.name,
+      day:slot.day,
+      startH:slot.startH,
+      dur,
+      color:'#7c3aed',
+      bg:'#f5f3ff',
+      effort:dur+'h',
+      priority:a.task.priority==='none'?'low':a.task.priority,
+      likelihood:'high',
+      type:'light',
+      done:false,
+      drift:false,
+      driftCount:0,
+      imported:true,
+      source:platform.name,
+    });
+  });
+  buildWeekGrid();
+  closePanel();
+  showToast(`${assignments.length} task${assignments.length>1?'s':''} added to your calendar`);
+  window._pendingImport=null;
+}
+
+// Patch buildEventEl to handle imported tasks
+const _origBuildEventEl=buildEventEl;
+buildEventEl=function(ev){
+  if(!ev.imported) return _origBuildEventEl(ev);
+  const el=document.createElement('div');
+  el.className='cal-event event-pop';
+  el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:#f5f3ff;color:#7c3aed;border-left:3px solid #7c3aed;`;
+  el.innerHTML=`
+    <div class="event-title">${ev.title}</div>
+    <div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>
+    <div class="import-source-badge">↓ ${ev.source}</div>`;
+  el.addEventListener('click',()=>showEventPanel(ev));
+  return el;
+};
+
+buildMiniCal();buildSidebarLoad();buildWeekHeader();buildWeekGrid();
+</script>
+</body>
+</html>
