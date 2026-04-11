@@ -41,10 +41,9 @@ input,textarea,select{font-family:inherit}
 /* ── LAYOUT ── */
 .app-body{display:flex;flex:1;overflow:hidden}
 .sidebar{width:210px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:14px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
-.main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
-.right-panel{width:308px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow:hidden;transform:translateX(100%);opacity:0;transition:transform 190ms cubic-bezier(.4,0,.2,1),opacity 190ms ease;will-change:transform,opacity}
-.right-panel.open{transform:translateX(0);opacity:1;overflow-y:auto}
-.right-panel.closing{transform:translateX(100%);opacity:0}
+.main{flex:1;min-width:0;width:100%;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.right-panel{width:0;min-width:0;flex-shrink:0;background:var(--surface);border:none;overflow:hidden;transform:translateX(100%);opacity:0;transition:transform 190ms cubic-bezier(.4,0,.2,1),opacity 190ms ease,width 190ms cubic-bezier(.4,0,.2,1);will-change:transform,opacity,width}
+.right-panel.open{width:308px;transform:translateX(0);opacity:1;overflow-y:auto;border-left:1px solid var(--border)}
 
 /* ── SIDEBAR ── */
 .mini-cal-header{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 10px}
@@ -74,7 +73,7 @@ input,textarea,select{font-family:inherit}
 .load-legend-dot{width:7px;height:7px;border-radius:50%}
 
 /* ── WEEK GRID ── */
-.week-header{display:grid;grid-template-columns:52px repeat(7,1fr);border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.week-header{display:grid;grid-template-columns:52px repeat(7,1fr);border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;width:100%;min-width:0}
 .wh-spacer{border-right:1px solid var(--border)}
 .wh-day{text-align:center;padding:10px 4px 5px;border-right:1px solid var(--border);cursor:pointer;transition:background 150ms ease}
 .wh-day:hover{background:var(--surface-raised)}
@@ -82,8 +81,8 @@ input,textarea,select{font-family:inherit}
 .wh-day-num{font-size:22px;font-weight:400;color:var(--text-secondary);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin:3px auto 0}
 .wh-day-num.today{background:var(--blue);color:#fff;font-weight:500}
 .wh-load-strip{height:6px;border-radius:3px;margin:4px 10px 5px;transition:background 300ms ease}
-.week-scroll{flex:1;overflow-y:auto;position:relative}
-.week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);position:relative}
+.week-scroll{flex:1;overflow-y:auto;position:relative;width:100%;min-width:0}
+.week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);position:relative;width:100%;min-width:0}
 .hour-label{font-size:10.5px;color:var(--text-tertiary);text-align:right;padding-right:10px;height:48px;display:flex;align-items:flex-start;padding-top:2px;margin-top:-6px;font-weight:500}
 .day-col{border-right:1px solid var(--border);position:relative;min-height:1152px}
 .day-col.today-col{background:rgba(26,115,232,.015)}
@@ -104,23 +103,23 @@ input,textarea,select{font-family:inherit}
 @keyframes badgePulse{0%,100%{opacity:1}50%{opacity:.45}}
 
 /* ── VIEW LAYERS ── */
-.view-layer{position:absolute;inset:0;transition:opacity 160ms ease,transform 160ms ease;will-change:opacity,transform}
+.view-layer{position:absolute;inset:0;width:100%;transition:opacity 160ms ease,transform 160ms ease;will-change:opacity,transform}
 .view-layer.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
 .view-layer.visible{opacity:1;transform:translateY(0)}
-.week-view-wrap{overflow:hidden;display:flex;flex-direction:column;height:100%}
+.week-view-wrap{overflow:hidden;display:flex;flex-direction:column;height:100%;width:100%;min-width:0}
 
 /* ── TODAY VIEW ── */
-.today-view{overflow-y:auto;padding:0;height:100%;display:flex;gap:0}
-.today-left{flex:1;overflow-y:auto;padding:32px 36px}
+.today-view{overflow-y:auto;padding:0;height:100%;width:100%;display:flex;gap:0;min-width:0}
+.today-left{flex:1;min-width:0;overflow-y:auto;padding:32px 36px}
 .today-right{width:272px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;padding:24px 18px;background:var(--surface-raised)}
-.start-here{background:var(--blue-light);border-radius:var(--radius-xl);padding:22px 26px;margin-bottom:24px;border-left:4px solid var(--blue);animation:cardIn 220ms cubic-bezier(.4,0,.2,1) both}
+.start-here{background:var(--blue-light);border-radius:var(--radius-xl);padding:22px 26px;margin-bottom:24px;border-left:4px solid var(--blue);animation:cardIn 220ms cubic-bezier(.4,0,.2,1) both;display:none;align-items:center;gap:14px;cursor:pointer;transition:filter 150ms ease,box-shadow 150ms ease}
+.start-here:hover{filter:brightness(.99);box-shadow:0 2px 14px rgba(26,115,232,.12)}
 @keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.sh-card-text{flex:1;min-width:0}
 .sh-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
-.sh-title{font-size:24px;font-weight:500;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:6px;line-height:1.25}
-.sh-meta{font-size:13px;color:var(--text-secondary);margin-bottom:18px;line-height:1.5}
-.sh-start-btn{width:100%;padding:11px 24px;border-radius:var(--radius-xl);border:none;background:var(--blue);color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.1px;transition:background 150ms ease,transform 150ms ease}
-.sh-start-btn:hover{background:#1765cc}
-.sh-start-btn:active{transform:scale(.97)}
+.sh-title{font-size:22px;font-weight:500;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:6px;line-height:1.25}
+.sh-meta{font-size:13px;color:var(--text-secondary);line-height:1.45}
+.sh-chevron{flex-shrink:0;font-size:22px;font-weight:300;color:var(--text-tertiary);line-height:1;padding-left:4px}
 .tv-section-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:22px}
 .tv-task{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:box-shadow 150ms ease,border-color 150ms ease,transform 150ms ease;animation:taskIn 200ms ease both;opacity:0}
 @keyframes taskIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
@@ -156,7 +155,7 @@ input,textarea,select{font-family:inherit}
 .wb-simple-label.done{color:var(--text-tertiary);text-decoration:line-through}
 
 /* ── INSIGHTS VIEW ── */
-.insights-view{overflow-y:auto;padding:32px 36px;height:100%}
+.insights-view{overflow-y:auto;padding:32px 36px;height:100%;width:100%;min-width:0;box-sizing:border-box}
 .insights-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
 .ins-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;animation:cardIn 200ms ease both;position:relative;overflow:hidden}
 .ins-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0}
@@ -412,11 +411,13 @@ input,textarea,select{font-family:inherit}
     <div class="view-layer hidden" id="layer-today">
       <div class="today-view">
         <div class="today-left" id="today-left">
-          <div class="start-here">
-            <div class="sh-label">✦ Start here</div>
-            <div class="sh-title" id="sh-title">Algorithms problem set</div>
-            <div class="sh-meta" id="sh-meta">High priority · Due today · 2 hrs · Your best focus window right now</div>
-            <button class="sh-start-btn" onclick="showToast('Timer started — good luck!')">Start now</button>
+          <div class="start-here" id="start-here-card">
+            <div class="sh-card-text">
+              <div class="sh-label">NOW</div>
+              <div class="sh-title" id="sh-title">Algorithms problem set</div>
+              <div class="sh-meta" id="sh-meta">9:00 AM – 11:00 AM · 2h</div>
+            </div>
+            <div class="sh-chevron" aria-hidden="true">›</div>
           </div>
           <div class="tv-section-label">High-effort tasks today</div>
           <div id="tv-high"></div>
@@ -626,7 +627,16 @@ function buildTodayView(){
   high.innerHTML='';light.innerHTML='';
   const todayEvs=EVENTS.filter(e=>e.day===2&&!e.done);
   const star=todayEvs.find(e=>e.priority==='high')||todayEvs[0];
-  if(star){document.getElementById('sh-title').textContent=star.title;document.getElementById('sh-meta').textContent=`High priority · Due today · ${star.effort} · Your best focus window right now`;}
+  const shCard=document.getElementById('start-here-card');
+  if(star){
+    shCard.style.display='flex';
+    document.getElementById('sh-title').textContent=star.title;
+    document.getElementById('sh-meta').textContent=`${fmtH(star.startH)} – ${fmtH(star.startH+star.dur)} · ${star.effort}`;
+    shCard.onclick=()=>{switchView('cal');setTimeout(()=>star.drift?showDriftPanel(star):showEventPanel(star),200);};
+  }else{
+    shCard.style.display='none';
+    shCard.onclick=null;
+  }
   todayEvs.forEach((ev,i)=>{
     if(ev===star) return;
     const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=(i*65+80)+'ms';
@@ -941,14 +951,15 @@ function showDriftPanel(ev){
 
 function openPanel(html){
   const rp=document.getElementById('right-panel');
+  rp.style.border='';
   rp.innerHTML=html;
   if(!panelOpen){rp.classList.add('open');panelOpen=true;}
 }
 function closePanel(){
   const rp=document.getElementById('right-panel');
   if(!panelOpen) return;
-  rp.classList.add('closing');rp.classList.remove('open');
-  setTimeout(()=>{rp.classList.remove('closing');rp.innerHTML='';panelOpen=false;},210);
+  rp.classList.remove('open');
+  setTimeout(()=>{rp.innerHTML='';rp.style.border='none';panelOpen=false;},210);
 }
 
 function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
