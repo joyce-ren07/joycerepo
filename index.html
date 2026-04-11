@@ -121,6 +121,7 @@ input,textarea,select{font-family:inherit}
 .sh-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
 .sh-title{font-size:22px;font-weight:500;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:6px;line-height:1.25}
 .sh-meta{font-size:13px;color:var(--text-secondary);line-height:1.45}
+.sh-meta2{font-size:12px;color:var(--text-tertiary);margin-top:8px;line-height:1.45;display:none}
 .sh-chevron{flex-shrink:0;font-size:22px;font-weight:300;color:var(--text-tertiary);line-height:1;padding-left:4px}
 .tv-section-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:22px}
 .tv-task{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:box-shadow 150ms ease,border-color 150ms ease,transform 150ms ease;animation:taskIn 200ms ease both;opacity:0}
@@ -417,9 +418,10 @@ input,textarea,select{font-family:inherit}
         <div class="today-left" id="today-left">
           <div class="start-here" id="start-here-card">
             <div class="sh-card-text">
-              <div class="sh-label">NOW</div>
+              <div class="sh-label" id="sh-label">NOW</div>
               <div class="sh-title" id="sh-title">Algorithms problem set</div>
               <div class="sh-meta" id="sh-meta">9:00 AM – 11:00 AM · 2h</div>
+              <div class="sh-meta2" id="sh-meta2"></div>
             </div>
             <div class="sh-chevron" aria-hidden="true">›</div>
           </div>
@@ -515,10 +517,10 @@ const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_DATES=[6,7,8,9,10,11,12];
 
 const TODAY_DAY=2;
-const NOW_H=9.5;
+const TODAY_NOW_H=9+25/60;
 function computeDayLoads(){const loads=[0,0,0,0,0,0,0];EVENTS.forEach(e=>{loads[e.day]+=e.dur;});return loads;}
 function deadlineToAbs(dl){return dl.day*24+dl.hour;}
-function hoursUntilDeadline(dl){return deadlineToAbs(dl)-(TODAY_DAY*24+NOW_H);}
+function hoursUntilDeadline(dl){return deadlineToAbs(dl)-(TODAY_DAY*24+TODAY_NOW_H);}
 function deadlineWithin24h(dl){const h=hoursUntilDeadline(dl);return h>=0&&h<=24;}
 function effortToDur(eff){if(eff==='30m')return .5;if(eff==='1h'||eff==='1 hr')return 1;if(eff==='1.5h')return 1.5;if(eff==='2h')return 2;if(eff==='3h')return 3;return parseFloat(eff)||1;}
 function slotEndsBeforeDeadline(day,startH,dur,dl){return day*24+startH+dur<=dl.day*24+dl.hour+.001;}
@@ -609,6 +611,7 @@ function buildSidebarLoad(){
 // ── WEEK HEADER ───────────────────────────────────────────────────────
 function buildWeekHeader(){
   const h=document.getElementById('week-header');
+  h.innerHTML='';
   const sp=document.createElement('div');sp.className='wh-spacer';h.appendChild(sp);
   const DAY_LOAD=computeDayLoads();
   DAY_NAMES.forEach((n,i)=>{
@@ -682,26 +685,64 @@ function switchView(v){
 function buildTodayView(){
   const high=document.getElementById('tv-high'),light=document.getElementById('tv-light');
   high.innerHTML='';light.innerHTML='';
-  const todayEvs=EVENTS.filter(e=>e.day===2&&!e.done);
-  const star=todayEvs.find(e=>e.priority==='high')||todayEvs[0];
+  const todayEvs=EVENTS.filter(e=>e.day===TODAY_DAY&&!e.done).sort((a,b)=>a.startH-b.startH);
+  const nowH=TODAY_NOW_H;
+  const current=todayEvs.find(e=>e.startH<=nowH&&nowH<e.startH+e.dur);
+  const nextUp=todayEvs.find(e=>e.startH>nowH);
   const shCard=document.getElementById('start-here-card');
-  if(star){
-    shCard.style.display='flex';
-    document.getElementById('sh-title').textContent=star.title;
-    document.getElementById('sh-meta').textContent=`${fmtH(star.startH)} – ${fmtH(star.startH+star.dur)} · ${star.effort}`;
-    shCard.onclick=()=>{switchView('cal');setTimeout(()=>star.drift?showDriftPanel(star):showEventPanel(star),200);};
+  const shLabel=document.getElementById('sh-label');
+  const shTitle=document.getElementById('sh-title');
+  const shMeta=document.getElementById('sh-meta');
+  const shMeta2=document.getElementById('sh-meta2');
+  let heroExclude=null;
+
+  shCard.style.display='flex';
+  if(!todayEvs.length){
+    shLabel.textContent='TODAY';
+    shTitle.textContent='Nothing scheduled today';
+    shMeta.textContent='Add something from the calendar or create a task.';
+    shMeta2.style.display='none';
+    shMeta2.textContent='';
+    shCard.onclick=()=>switchView('cal');
+  }else if(current){
+    shLabel.textContent='NOW';
+    shTitle.textContent=current.title;
+    shMeta.textContent=`${fmtH(current.startH)} – ${fmtH(current.startH+current.dur)} · ${current.effort}`;
+    if(nextUp&&nextUp!==current){
+      shMeta2.textContent=`Next: ${nextUp.title} · ${fmtH(nextUp.startH)}`;
+      shMeta2.style.display='block';
+    }else{
+      shMeta2.style.display='none';
+      shMeta2.textContent='';
+    }
+    heroExclude=current;
+    shCard.onclick=()=>{switchView('cal');setTimeout(()=>current.drift?showDriftPanel(current):showEventPanel(current),200);};
+  }else if(nextUp){
+    shLabel.textContent='OPEN';
+    shTitle.textContent='Nothing in progress right now';
+    shMeta.textContent=`${fmtH(nowH)} · Free until ${fmtH(nextUp.startH)}`;
+    shMeta2.textContent=`Next: ${nextUp.title} · ${fmtH(nextUp.startH)} – ${fmtH(nextUp.startH+nextUp.dur)}${nextUp.effort?' · '+nextUp.effort:''}`;
+    shMeta2.style.display='block';
+    heroExclude=nextUp;
+    shCard.onclick=()=>{switchView('cal');setTimeout(()=>nextUp.drift?showDriftPanel(nextUp):showEventPanel(nextUp),200);};
   }else{
-    shCard.style.display='none';
-    shCard.onclick=null;
+    const last=todayEvs[todayEvs.length-1];
+    shLabel.textContent='OPEN';
+    shTitle.textContent='No more tasks today';
+    shMeta.textContent=`${fmtH(nowH)} · Free until end of day`;
+    shMeta2.textContent=`Last: ${last.title} · ended ${fmtH(last.startH+last.dur)}`;
+    shMeta2.style.display='block';
+    shCard.onclick=()=>switchView('cal');
   }
+
   todayEvs.forEach((ev,i)=>{
-    if(ev===star) return;
+    if(ev===heroExclude) return;
     const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=(i*65+80)+'ms';
     div.onclick=()=>{switchView('cal');setTimeout(()=>ev.drift?showDriftPanel(ev):showEventPanel(ev),200);};
     div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${fmtH(ev.startH)} · ${ev.effort}</div>${ev.deadline?`<div class="tv-task-due">${fmtDeadlineLine(ev.deadline)}</div>`:''}</div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
     (ev.type==='deep'?high:light).appendChild(div);
   });
-  EVENTS.filter(e=>e.day!==2&&e.type==='light').slice(0,2).forEach((ev,i)=>{
+  EVENTS.filter(e=>e.day!==TODAY_DAY&&e.type==='light').slice(0,2).forEach((ev,i)=>{
     const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=((i+3)*65+80)+'ms';
     div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${ev.effort} · Could do any time</div></div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
     light.appendChild(div);
