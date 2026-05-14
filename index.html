@@ -1083,7 +1083,7 @@ function driftBreak(){
     [1,2,3].forEach((d,i)=>{
       nextId++;
       const dl=base.deadline
-        ?{day:Math.max(d,base.deadline.day),hour:base.deadline.hour}
+        ?{day:base.deadline.day,hour:base.deadline.hour}
         :{day:d,hour:17};
       EVENTS.push({id:nextId,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:dl});
     });
