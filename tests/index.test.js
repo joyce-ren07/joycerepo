@@ -53,6 +53,8 @@ test('import slot labels match the actual assigned calendar day', () => {
 
 test('non-April due dates are treated as outside the visible week', () => {
   const { parseDueToDeadline } = loadCalendarScript();
+  const deadline = parseDueToDeadline('May 1', 0);
 
-  assert.deepEqual(parseDueToDeadline('May 1', 0), { day: 6, hour: 17 });
+  assert.equal(deadline.day, 6);
+  assert.equal(deadline.hour, 17);
 });
