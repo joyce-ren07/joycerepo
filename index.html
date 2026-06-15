@@ -1223,14 +1223,14 @@ const IMPORT_TASKS_BY_PLATFORM={
 };
 
 const IMPORT_SLOT_POOL=[
-  {day:3,startH:10,label:'Thu Apr 10, 10 AM'},
-  {day:3,startH:14,label:'Thu Apr 10, 2 PM'},
-  {day:4,startH:9,label:'Fri Apr 11, 9 AM'},
-  {day:4,startH:13,label:'Fri Apr 11, 1 PM'},
-  {day:5,startH:10,label:'Sat Apr 12, 10 AM'},
-  {day:5,startH:14,label:'Sat Apr 12, 2 PM'},
-  {day:1,startH:11,label:'Mon Apr 14, 11 AM'},
-  {day:2,startH:15,label:'Tue Apr 15, 3 PM'},
+  {day:3,startH:10,label:'Wed Apr 9, 10 AM'},
+  {day:3,startH:14,label:'Wed Apr 9, 2 PM'},
+  {day:4,startH:9,label:'Thu Apr 10, 9 AM'},
+  {day:4,startH:13,label:'Thu Apr 10, 1 PM'},
+  {day:5,startH:10,label:'Fri Apr 11, 10 AM'},
+  {day:5,startH:14,label:'Fri Apr 11, 2 PM'},
+  {day:1,startH:11,label:'Mon Apr 7, 11 AM'},
+  {day:2,startH:15,label:'Tue Apr 8, 3 PM'},
   {day:2,startH:9,label:'Tue Apr 8, 9 AM'},
   {day:6,startH:11,label:'Sat Apr 12, 11 AM'},
 ];
@@ -1239,9 +1239,12 @@ function parseDueToDeadline(dueStr,seed){
     const off=2+(seed%5);
     return{day:Math.min(TODAY_DAY+off,6),hour:17};
   }
-  const n=parseInt(String(dueStr).replace(/\D/g,''),10);
-  if(n>=6&&n<=12)return{day:n-6,hour:17};
-  if(n<6)return{day:0,hour:12};
+  const m=String(dueStr).match(/([A-Za-z]+)?\s*(\d{1,2})/);
+  if(!m)return{day:6,hour:17};
+  const month=(m[1]||'Apr').slice(0,3).toLowerCase();
+  const n=parseInt(m[2],10);
+  if(month==='apr'&&n>=6&&n<=12)return{day:n-6,hour:17};
+  if(month==='apr'&&n<6)return{day:0,hour:12};
   return{day:6,hour:17};
 }
 function priorityToImportDur(p){return p==='high'?1.5:p==='med'?1:.5;}
@@ -1250,9 +1253,11 @@ function assignImportSlots(selected){
   const enriched=selected.map((t,i)=>({task:t,deadline:parseDueToDeadline(t.due,i),dur:priorityToImportDur(t.priority)}));
   enriched.sort((a,b)=>deadlineToAbs(a.deadline)-deadlineToAbs(b.deadline));
   const taken=new Set();
+  const nowAbs=TODAY_DAY*24+TODAY_NOW_H;
+  const slotPool=IMPORT_SLOT_POOL.filter(p=>p.day*24+p.startH>=nowAbs-0.01);
   return enriched.map((row,idx)=>{
     let best=null,bestScore=-1e9;
-    for(const p of IMPORT_SLOT_POOL){
+    for(const p of slotPool){
       const key=p.day+'-'+p.startH;
       if(taken.has(key))continue;
       const ends=p.day*24+p.startH+row.dur;
@@ -1264,7 +1269,7 @@ function assignImportSlots(selected){
     }
     if(!best){
       let fbScore=-1e9;
-      for(const p of IMPORT_SLOT_POOL){
+      for(const p of slotPool){
         const key=p.day+'-'+p.startH;
         if(taken.has(key))continue;
         let sc=80-loads[p.day]*6;
@@ -1273,7 +1278,10 @@ function assignImportSlots(selected){
         if(sc>fbScore){fbScore=sc;best={...p};}
       }
     }
-    if(!best)best={...IMPORT_SLOT_POOL[idx%IMPORT_SLOT_POOL.length]};
+    if(!best){
+      const fallbackPool=slotPool.length?slotPool:IMPORT_SLOT_POOL;
+      best={...fallbackPool[idx%fallbackPool.length]};
+    }
     taken.add(best.day+'-'+best.startH);
     loads[best.day]+=row.dur;
     return{task:row.task,deadline:row.deadline,dur:row.dur,slot:best};
