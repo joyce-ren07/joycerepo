@@ -156,13 +156,14 @@ test('import review escapes external task names and ids', () => {
 test('import slot labels match the rendered calendar week', () => {
   const {context} = loadApp();
   const labels = vm.runInContext('IMPORT_SLOT_POOL.map(slot => slot.label)', context);
+  const firstLabels = labels.slice(0, 4);
 
-  assert.deepEqual(labels.slice(0, 4), [
+  assert.equal(JSON.stringify(firstLabels), JSON.stringify([
     'Wed Apr 9, 10 AM',
     'Wed Apr 9, 2 PM',
     'Thu Apr 10, 9 AM',
     'Thu Apr 10, 1 PM',
-  ]);
+  ]));
   assert.equal(labels.includes('Mon Apr 14, 11 AM'), false);
   assert.equal(labels.includes('Tue Apr 15, 3 PM'), false);
 });
