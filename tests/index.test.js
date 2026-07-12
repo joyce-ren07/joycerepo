@@ -20,6 +20,10 @@ function loadCalendarScript() {
   return context.__calTestApi;
 }
 
+function fromVm(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 test('drift split keeps the original task deadline on every segment', () => {
   const { deadlineForDriftSegment } = loadCalendarScript();
   const overdueTask = {
@@ -27,7 +31,7 @@ test('drift split keeps the original task deadline on every segment', () => {
     deadline: { day: 1, hour: 9 },
   };
 
-  const segmentDeadlines = [1, 2, 3].map(day => deadlineForDriftSegment(overdueTask, day));
+  const segmentDeadlines = fromVm([1, 2, 3].map(day => deadlineForDriftSegment(overdueTask, day)));
 
   assert.deepEqual(segmentDeadlines, [
     { day: 1, hour: 9 },
@@ -40,5 +44,5 @@ test('drift split assigns per-segment fallback deadlines when no original deadli
   const { deadlineForDriftSegment } = loadCalendarScript();
   const taskWithoutDeadline = { title: 'Open-ended cleanup' };
 
-  assert.deepEqual(deadlineForDriftSegment(taskWithoutDeadline, 2), { day: 2, hour: 17 });
+  assert.deepEqual(fromVm(deadlineForDriftSegment(taskWithoutDeadline, 2)), { day: 2, hour: 17 });
 });
