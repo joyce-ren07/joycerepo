@@ -539,6 +539,10 @@ function lr(l){return l==='high'?"fits your usual focus hours":l==='med'?"you co
 function loadColor(hrs){return hrs>4.5?'#ef4444':hrs>2.5?'#f59e0b':'#0d9488'}
 function fmtH(h){const hr=Math.floor(h),min=Math.round((h-hr)*60),ap=hr<12?'AM':'PM',h12=hr%12||12;return min===0?`${h12} ${ap}`:`${h12}:${String(min).padStart(2,'0')} ${ap}`;}
 function fmtDeadlineLine(dl){return`Due ${DAY_NAMES[dl.day]} ${fmtH(dl.hour)}`;}
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function inlineJsArg(value){return escapeHtml(JSON.stringify(String(value??'')));}
 
 function defaultDeadlineForOptimize(){
   if(selPriority==='high')return{day:Math.min(TODAY_DAY+1,6),hour:23};
@@ -659,7 +663,7 @@ function buildEventEl(ev){
   el.className='cal-event event-pop'+(ev.drift?' drift':'')+(urg?' deadline-urgent':'');
   el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:${ev.bg};color:${ev.color};border-left:3px solid ${bord};`;
   const dl=ev.deadline?`<div class="event-deadline">${fmtDeadlineLine(ev.deadline)}</div>`:'';
-  el.innerHTML=`<div class="event-title">${ev.title}</div><div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>${dl}${ev.drift?'<div class="drift-badge">⟳ Drifting</div>':''}`;
+  el.innerHTML=`<div class="event-title">${escapeHtml(ev.title)}</div><div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>${dl}${ev.drift?'<div class="drift-badge">⟳ Drifting</div>':''}`;
   el.addEventListener('click',()=>ev.drift?showDriftPanel(ev):showEventPanel(ev));
   return el;
 }
@@ -740,12 +744,12 @@ function buildTodayView(){
     if(ev===heroExclude) return;
     const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=(i*65+80)+'ms';
     div.onclick=()=>{switchView('cal');setTimeout(()=>ev.drift?showDriftPanel(ev):showEventPanel(ev),200);};
-    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${fmtH(ev.startH)} · ${ev.effort}</div>${ev.deadline?`<div class="tv-task-due">${fmtDeadlineLine(ev.deadline)}</div>`:''}</div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
+    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${escapeHtml(ev.title)}</div><div class="tv-task-meta">${fmtH(ev.startH)} · ${escapeHtml(ev.effort)}</div>${ev.deadline?`<div class="tv-task-due">${fmtDeadlineLine(ev.deadline)}</div>`:''}</div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
     (ev.type==='deep'?high:light).appendChild(div);
   });
   EVENTS.filter(e=>e.day!==TODAY_DAY&&e.type==='light').slice(0,2).forEach((ev,i)=>{
     const div=document.createElement('div');div.className='tv-task';div.style.animationDelay=((i+3)*65+80)+'ms';
-    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${ev.title}</div><div class="tv-task-meta">${ev.effort} · Could do any time</div></div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
+    div.innerHTML=`<div class="tv-task-dot" style="background:${ev.color}"></div><div class="tv-task-info"><div class="tv-task-title">${escapeHtml(ev.title)}</div><div class="tv-task-meta">${escapeHtml(ev.effort)} · Could do any time</div></div><div class="likelihood-pill ${lc(ev.likelihood)}"><div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)}</div>`;
     light.appendChild(div);
   });
   buildWellbeingSidebar();
@@ -1006,8 +1010,8 @@ function showDayLoadPanel(dayIdx){
         ${events.map(ev=>`
           <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f3f4">
             <div style="width:8px;height:8px;border-radius:50%;background:${ev.color};flex-shrink:0"></div>
-            <div style="flex:1;font-size:13px;color:#202124">${ev.title}</div>
-            <div style="font-size:12px;color:#5f6368">${ev.effort}</div>
+            <div style="flex:1;font-size:13px;color:#202124">${escapeHtml(ev.title)}</div>
+            <div style="font-size:12px;color:#5f6368">${escapeHtml(ev.effort)}</div>
           </div>`).join('')}
       `:'<div style="font-size:13px;color:#5f6368">No tasks — a free day.</div>'}
       ${load>4.5?`<button style="width:100%;padding:10px;border-radius:20px;border:none;background:#1a73e8;color:#fff;font-size:14px;font-weight:500;margin-top:14px;transition:background 150ms ease" onmouseover="this.style.background='#1765cc'" onmouseout="this.style.background='#1a73e8'" onclick="closePanel();showToast('Opening optimize to move a task…')">Help me rebalance this day</button>`:''}
@@ -1018,17 +1022,17 @@ function showEventPanel(ev){
   openPanel(`
     <div class="rp-header">
       <div class="rp-orb"><div class="rp-orb-inner"></div></div>
-      <div class="rp-title">${ev.title}</div>
+      <div class="rp-title">${escapeHtml(ev.title)}</div>
       <button class="rp-close" onclick="closePanel()">✕</button>
     </div>
     <div class="rp-body rp-content-enter">
-      <div style="font-size:13px;color:#5f6368;margin-bottom:4px">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)} · ${ev.effort}</div>
+      <div style="font-size:13px;color:#5f6368;margin-bottom:4px">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)} · ${escapeHtml(ev.effort)}</div>
       ${ev.deadline?`<div style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px">${fmtDeadlineLine(ev.deadline)}</div>`:'<div style="margin-bottom:16px"></div>'}
       <div style="font-size:13px;font-weight:500;color:#202124;margin-bottom:8px">Completion likelihood</div>
       <div class="likelihood-pill ${lc(ev.likelihood)}" style="font-size:13px;padding:5px 12px;margin-bottom:16px;display:inline-flex">
         <div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)} — ${lr(ev.likelihood)}
       </div>
-      <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openAddTask('${ev.title}')">Reschedule with optimize</button>
+      <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openAddTask(${inlineJsArg(ev.title)})">Reschedule with optimize</button>
       <button style="width:100%;padding:10px;border-radius:20px;border:none;background:#fce8e6;color:#c5221f;font-size:14px;font-weight:500;transition:background 150ms ease" onmouseover="this.style.background='#f5c6c2'" onmouseout="this.style.background='#fce8e6'" onclick="closePanel();showToast('Task removed.')">Remove task</button>
     </div>`);
 }
@@ -1043,7 +1047,7 @@ function showDriftPanel(ev){
     </div>
     <div class="drift-panel rp-content-enter">
       <div class="drift-header-label">⟳ Moved ${ev.driftCount} times</div>
-      <div class="drift-task-name">${ev.title}</div>
+      <div class="drift-task-name">${escapeHtml(ev.title)}</div>
       <div class="drift-count">Last scheduled Sunday evening — not started.</div>
       <div class="drift-insight"><strong>Pattern noticed:</strong> Evening blocks haven't been working for this task. Your completion rate after 7 PM is under 20%.</div>
       <div style="font-size:13px;font-weight:500;color:#5f6368;margin-bottom:8px">What would you like to do?</div>
@@ -1125,7 +1129,7 @@ function runOptimize(){
         <button class="rp-close" onclick="closePanel()">✕</button>
       </div>
       <div class="rp-body rp-content-enter">
-        <div class="rp-task-name">${name.replace(/</g,'&lt;')}</div>
+        <div class="rp-task-name">${escapeHtml(name)}</div>
         <div class="rp-sub">3 best times based on your patterns &amp; deadline</div>
         ${slots.map((s,i)=>`
           <div class="slot-card${i===0?' selected':''}" id="slot-${i}" onclick="selectSlot(${i})">
@@ -1306,8 +1310,8 @@ function renderImportStep1(){
           <div class="platform-card" id="plat-${p.id}" onclick="selectPlatform('${p.id}')">
             <div class="platform-logo" style="background:${p.bg}">${p.svg}</div>
             <div class="platform-info">
-              <div class="platform-name">${p.name}</div>
-              <div class="platform-tagline">${p.tagline}</div>
+              <div class="platform-name">${escapeHtml(p.name)}</div>
+              <div class="platform-tagline">${escapeHtml(p.tagline)}</div>
             </div>
           </div>`).join('')}
       </div>
@@ -1339,7 +1343,7 @@ function startFakeConnect(){
     <div class="import-modal-body">
       <div class="import-loading">
         <div class="import-spinner"></div>
-        <span>Connecting to ${p.name}…</span>
+        <span>Connecting to ${escapeHtml(p.name)}…</span>
       </div>
     </div>
     <div class="import-modal-footer"><span></span></div>`;
@@ -1364,7 +1368,7 @@ function updateImportStep2(){
       <div style="display:flex;align-items:center;gap:10px">
         <div class="platform-logo" style="background:${p.bg};width:32px;height:32px;border-radius:8px;font-size:15px">${p.svg}</div>
         <div>
-          <div class="import-modal-title" style="font-size:15px">${p.name} — ${total} tasks found</div>
+          <div class="import-modal-title" style="font-size:15px">${escapeHtml(p.name)} — ${total} tasks found</div>
           <div class="import-modal-sub">Select tasks to schedule with Cal</div>
         </div>
       </div>
@@ -1376,14 +1380,14 @@ function updateImportStep2(){
       </div>
       ${importTasks.map(t=>{
         const chk=importChecked.has(t.id);
-        return `<div class="import-task-row" onclick="toggleImportTask('${t.id}')">
-          <div class="import-checkbox${chk?' checked':''}" id="chk-${t.id}"></div>
+        return `<div class="import-task-row" onclick="toggleImportTask(${inlineJsArg(t.id)})">
+          <div class="import-checkbox${chk?' checked':''}" id="chk-${escapeHtml(t.id)}"></div>
           <div class="import-task-info">
-            <div class="import-task-name">${t.name}</div>
+            <div class="import-task-name">${escapeHtml(t.name)}</div>
             <div class="import-task-meta">
-              ${t.due?`<span class="import-badge badge-due">Due ${t.due}</span>`:''}
+              ${t.due?`<span class="import-badge badge-due">Due ${escapeHtml(t.due)}</span>`:''}
               ${t.priority==='high'?'<span class="import-badge badge-high">High</span>':t.priority==='med'?'<span class="import-badge badge-med">Medium</span>':''}
-              <span class="import-badge badge-source">From ${p.name}</span>
+              <span class="import-badge badge-source">From ${escapeHtml(p.name)}</span>
             </div>
           </div>
         </div>`;
@@ -1425,13 +1429,13 @@ function runImportSchedule(){
         <button class="rp-close" onclick="closePanel()">✕</button>
       </div>
       <div class="rp-body rp-content-enter">
-        <div class="rp-sub" style="margin-bottom:14px">From ${p.name} · ranked by deadline, effort &amp; current load</div>
+        <div class="rp-sub" style="margin-bottom:14px">From ${escapeHtml(p.name)} · ranked by deadline, effort &amp; current load</div>
         <div style="margin-bottom:16px">
           ${assignments.map((a,i)=>`
             <div class="import-queue-item">
               <div class="import-queue-num">${i+1}</div>
               <div>
-                <div class="import-queue-name">${a.task.name}</div>
+                <div class="import-queue-name">${escapeHtml(a.task.name)}</div>
                 <div class="import-queue-slot" style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${fmtDeadlineLine(a.deadline)}</div>
                 <div class="import-queue-slot">→ ${a.slot.label}</div>
               </div>
@@ -1491,10 +1495,10 @@ buildEventEl=function(ev){
   el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:#f5f3ff;color:#7c3aed;border-left:3px solid ${bord};`;
   const dl=ev.deadline?`<div class="event-deadline">${fmtDeadlineLine(ev.deadline)}</div>`:'';
   el.innerHTML=`
-    <div class="event-title">${ev.title}</div>
+    <div class="event-title">${escapeHtml(ev.title)}</div>
     <div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>
     ${dl}
-    <div class="import-source-badge">↓ ${ev.source}</div>`;
+    <div class="import-source-badge">↓ ${escapeHtml(ev.source)}</div>`;
   el.addEventListener('click',()=>showEventPanel(ev));
   return el;
 };
