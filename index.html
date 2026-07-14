@@ -102,6 +102,12 @@ input,textarea,select{font-family:inherit}
 .event-time-label{opacity:.85;font-size:11px;font-weight:400;line-height:1.25;flex-shrink:0}
 .event-deadline{font-size:10px;color:var(--text-tertiary);font-weight:400;letter-spacing:.01em;line-height:1.25;flex-shrink:0}
 .drift-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.12);border-radius:4px;padding:2px 6px;flex-shrink:0;animation:badgePulse 2.5s ease-in-out infinite}
+.cal-event.short{padding:5px 8px}
+.cal-event.short .event-deadline,.cal-event.short .drift-badge,.cal-event.short .import-source-badge{display:none}
+.cal-event.compact{display:block;padding:2px 8px}
+.cal-event.compact>:not(.event-title){display:none}
+.cal-event.compact .event-title{display:block;line-height:16px;white-space:nowrap;text-overflow:ellipsis}
+.cal-event.medium .import-source-badge{display:none}
 @keyframes badgePulse{0%,100%{opacity:1}50%{opacity:.45}}
 
 /* ── VIEW LAYERS ── */
@@ -656,12 +662,18 @@ function buildEventEl(ev){
   const el=document.createElement('div');
   const urg=!ev.drift&&ev.deadline&&deadlineWithin24h(ev.deadline);
   const bord=ev.drift?'#ef4444':urg?'#d97706':ev.color;
-  el.className='cal-event event-pop'+(ev.drift?' drift':'')+(urg?' deadline-urgent':'');
+  el.className='cal-event event-pop'+eventSizeClass(ev.dur)+(ev.drift?' drift':'')+(urg?' deadline-urgent':'');
   el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:${ev.bg};color:${ev.color};border-left:3px solid ${bord};`;
   const dl=ev.deadline?`<div class="event-deadline">${fmtDeadlineLine(ev.deadline)}</div>`:'';
   el.innerHTML=`<div class="event-title">${ev.title}</div><div class="event-time-label">${fmtH(ev.startH)} – ${fmtH(ev.startH+ev.dur)}</div>${dl}${ev.drift?'<div class="drift-badge">⟳ Drifting</div>':''}`;
   el.addEventListener('click',()=>ev.drift?showDriftPanel(ev):showEventPanel(ev));
   return el;
+}
+function eventSizeClass(dur){
+  if(dur<=.5)return' compact';
+  if(dur<=1)return' short';
+  if(dur<2)return' medium';
+  return'';
 }
 
 // ── VIEW SWITCH ───────────────────────────────────────────────────────
@@ -1487,7 +1499,7 @@ buildEventEl=function(ev){
   const el=document.createElement('div');
   const urg=ev.deadline&&deadlineWithin24h(ev.deadline);
   const bord=urg?'#d97706':'#7c3aed';
-  el.className='cal-event event-pop'+(urg?' deadline-urgent':'');
+  el.className='cal-event imported event-pop'+eventSizeClass(ev.dur)+(urg?' deadline-urgent':'');
   el.style.cssText=`top:${ev.startH*48}px;height:${ev.dur*48-4}px;background:#f5f3ff;color:#7c3aed;border-left:3px solid ${bord};`;
   const dl=ev.deadline?`<div class="event-deadline">${fmtDeadlineLine(ev.deadline)}</div>`:'';
   el.innerHTML=`
