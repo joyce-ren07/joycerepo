@@ -525,6 +525,11 @@ function deadlineWithin24h(dl){const h=hoursUntilDeadline(dl);return h>=0&&h<=24
 function effortToDur(eff){if(eff==='30m')return .5;if(eff==='1h'||eff==='1 hr')return 1;if(eff==='1.5h')return 1.5;if(eff==='2h')return 2;if(eff==='3h')return 3;return parseFloat(eff)||1;}
 function slotEndsBeforeDeadline(day,startH,dur,dl){return day*24+startH+dur<=dl.day*24+dl.hour+.001;}
 function daysFromTodayToDl(dl){return dl.day-TODAY_DAY;}
+function slotIsAvailable(day,startH,dur){
+  const endH=startH+dur;
+  const overlaps=item=>item.day===day&&item.startH<endH-.001&&item.startH+item.dur>startH+.001;
+  return !EVENTS.some(overlaps)&&!WB_BLOCKS.some(overlaps);
+}
 
 let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false;
 
@@ -558,7 +563,10 @@ const OPTIMIZE_CANDIDATES=[
 function buildOptimizeSlots(effortDur,deadline){
   const loads=computeDayLoads();
   const dtd=daysFromTodayToDl(deadline);
-  const scored=OPTIMIZE_CANDIDATES.map(c=>{
+  const nowAbs=TODAY_DAY*24+TODAY_NOW_H;
+  const scored=OPTIMIZE_CANDIDATES
+    .filter(c=>c.day*24+c.startH>=nowAbs-.001&&slotIsAvailable(c.day,c.startH,effortDur))
+    .map(c=>{
     const likelihood=c.baseL;
     let score=likelihood==='high'?40:likelihood==='med'?25:10;
     score-=loads[c.day]*3;
@@ -1118,15 +1126,7 @@ function runOptimize(){
   if(view!=='cal') switchView('cal');
   setTimeout(()=>{
     const slots=window._optimizeSlots;
-    openPanel(`
-      <div class="rp-header">
-        <div class="rp-orb"><div class="rp-orb-inner"></div></div>
-        <div class="rp-title">Smart scheduling</div>
-        <button class="rp-close" onclick="closePanel()">✕</button>
-      </div>
-      <div class="rp-body rp-content-enter">
-        <div class="rp-task-name">${name.replace(/</g,'&lt;')}</div>
-        <div class="rp-sub">3 best times based on your patterns &amp; deadline</div>
+    const slotChoices=slots.length?`
         ${slots.map((s,i)=>`
           <div class="slot-card${i===0?' selected':''}" id="slot-${i}" onclick="selectSlot(${i})">
             <div class="slot-time">${s.label}</div>
@@ -1139,6 +1139,17 @@ function runOptimize(){
             </div>
           </div>`).join('')}
         <button class="confirm-btn" id="confirm-btn" onclick="confirmSlot()">Confirm: ${slots[0].label.split(',')[0]}</button>
+      `:'<div class="rp-sub">No conflict-free times are available before this deadline.</div>';
+    openPanel(`
+      <div class="rp-header">
+        <div class="rp-orb"><div class="rp-orb-inner"></div></div>
+        <div class="rp-title">Smart scheduling</div>
+        <button class="rp-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="rp-body rp-content-enter">
+        <div class="rp-task-name">${name.replace(/</g,'&lt;')}</div>
+        <div class="rp-sub">3 best times based on your patterns &amp; deadline</div>
+        ${slotChoices}
       </div>`);
   },view==='cal'?80:300);
 }
