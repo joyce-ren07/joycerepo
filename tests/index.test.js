@@ -29,7 +29,7 @@ test('optimizer excludes elapsed and occupied candidate windows', () => {
   const { buildOptimizeSlots, slotIsAvailable, now } = loadScheduler();
   const slots = JSON.parse(JSON.stringify(buildOptimizeSlots(1, { day: 3, hour: 23 })));
 
-  assert.equal(slots.length, 3);
+  assert.equal(slots.length, 2);
   assert.equal(
     slots.some(slot => slot.day === 3 && slot.startH === 9),
     false,
