@@ -1028,7 +1028,7 @@ function showEventPanel(ev){
       <div class="likelihood-pill ${lc(ev.likelihood)}" style="font-size:13px;padding:5px 12px;margin-bottom:16px;display:inline-flex">
         <div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)} — ${lr(ev.likelihood)}
       </div>
-      <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openAddTask('${ev.title}')">Reschedule with optimize</button>
+      <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openRescheduleTask(${ev.id})">Reschedule with optimize</button>
       <button style="width:100%;padding:10px;border-radius:20px;border:none;background:#fce8e6;color:#c5221f;font-size:14px;font-weight:500;transition:background 150ms ease" onmouseover="this.style.background='#f5c6c2'" onmouseout="this.style.background='#fce8e6'" onclick="closePanel();showToast('Task removed.')">Remove task</button>
     </div>`);
 }
@@ -1075,7 +1075,11 @@ function closePanel(){
   setTimeout(()=>{rp.innerHTML='';rp.style.border='none';panelOpen=false;},210);
 }
 
-function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
+function driftReschedule(){
+  const eventId=driftEv?driftEv.id:null;
+  closePanel();
+  setTimeout(()=>openRescheduleTask(eventId),220);
+}
 function driftBreak(){
   const base=driftEv;if(!base) return;closePanel();
   setTimeout(()=>{
@@ -1098,10 +1102,16 @@ function driftRemove(){
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────
-function openAddTask(prefill=''){
+function openAddTask(prefill='',rescheduleId=null){
+  window._pendingRescheduleId=rescheduleId;
   document.getElementById('modal-overlay').classList.add('open');
   const inp=document.getElementById('modal-task-input');inp.value=prefill;
   setTimeout(()=>inp.focus(),220);
+}
+function openRescheduleTask(eventId){
+  const ev=EVENTS.find(e=>e.id===eventId);
+  if(!ev)return;
+  openAddTask(ev.title,ev.id);
 }
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
 function selectEffort(btn,val){selEffort=val;btn.closest('.effort-pills').querySelectorAll('.effort-pill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
@@ -1112,7 +1122,8 @@ function runOptimize(){
   window._pendingOptimizeName=name;
   closeModal();selSlot=0;
   const effortDur=effortToDur(selEffort);
-  const dl=defaultDeadlineForOptimize();
+  const rescheduleEvent=EVENTS.find(e=>e.id===window._pendingRescheduleId);
+  const dl=rescheduleEvent&&rescheduleEvent.deadline?rescheduleEvent.deadline:defaultDeadlineForOptimize();
   window._optimizeSlots=buildOptimizeSlots(effortDur,dl);
   window._pendingOptimizeDeadline=dl;
   if(view!=='cal') switchView('cal');
@@ -1151,6 +1162,32 @@ function selectSlot(i){
   if(btn&&slots[i]) btn.textContent=`Confirm: ${slots[i].label.split(',')[0]}`;
 }
 
+function saveOptimizedEvent(event,rescheduleId=null){
+  const idx=rescheduleId===null?-1:EVENTS.findIndex(e=>e.id===rescheduleId);
+  if(idx<0){
+    EVENTS.push({id:Date.now(),...event});
+    return false;
+  }
+  const existing=EVENTS[idx];
+  EVENTS.splice(idx,1,{
+    ...existing,
+    ...event,
+    id:existing.id,
+    color:existing.color,
+    bg:existing.bg,
+    type:existing.type,
+    deadline:existing.deadline||event.deadline,
+    imported:existing.imported,
+    source:existing.source,
+    done:false,
+    onTime:false,
+    beforeDeadline:false,
+    drift:false,
+    driftCount:(existing.driftCount||0)+1,
+  });
+  return true;
+}
+
 function confirmSlot(){
   const name=window._pendingOptimizeName||'New task';
   const btn=document.getElementById('confirm-btn');
@@ -1160,8 +1197,9 @@ function confirmSlot(){
     const slot=slots[selSlot]||slots[0];
     const dl=window._pendingOptimizeDeadline||defaultDeadlineForOptimize();
     if(!slot){buildWeekGrid();closePanel();return;}
-    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(selEffort),color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
-    buildWeekGrid();buildSidebarLoad();buildWeekHeader();closePanel();showToast(`"${name}" added — ${slot.label.split(',')[0]}`);
+    const wasRescheduled=saveOptimizedEvent({title:name,day:slot.day,startH:slot.startH,dur:effortToDur(selEffort),color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl},window._pendingRescheduleId);
+    window._pendingRescheduleId=null;
+    buildWeekGrid();buildSidebarLoad();buildWeekHeader();closePanel();showToast(`"${name}" ${wasRescheduled?'rescheduled':'added'} — ${slot.label.split(',')[0]}`);
   },420);
 }
 
