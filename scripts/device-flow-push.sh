@@ -6,13 +6,19 @@ CLIENT_ID="178c6fc778ccc68e1d6a"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REMOTE_SSH="git@github.com:joyce-ren07/joycerepo.git"
 
+restore_remote() {
+  git -C "$ROOT" remote set-url origin "$REMOTE_SSH"
+}
+
 push_with_token() {
   local token="$1"
   cd "$ROOT"
   export GIT_TERMINAL_PROMPT=0
+  trap restore_remote EXIT HUP INT TERM
   git remote set-url origin "https://joyce-ren07:${token}@github.com/joyce-ren07/joycerepo.git"
   git push -u origin main
-  git remote set-url origin "$REMOTE_SSH"
+  restore_remote
+  trap - EXIT HUP INT TERM
   echo ""
   echo "Push complete. Remote is SSH again (no token stored)."
 }
