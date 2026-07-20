@@ -33,6 +33,6 @@ fi
   assert.deepEqual(readFileSync(gitLog, 'utf8').trim().split('\n'), [
     'remote set-url origin https://joyce-ren07:test-token@github.com/joyce-ren07/joycerepo.git',
     'push -u origin main',
-    'remote set-url origin git@github.com:joyce-ren07/joycerepo.git',
+    `-C ${resolve(__dirname, '..')} remote set-url origin git@github.com:joyce-ren07/joycerepo.git`,
   ]);
 });
