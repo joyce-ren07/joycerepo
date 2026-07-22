@@ -1245,16 +1245,22 @@ function parseDueToDeadline(dueStr,seed){
   return{day:6,hour:17};
 }
 function priorityToImportDur(p){return p==='high'?1.5:p==='med'?1:.5;}
+function importSlotIsAvailable(day,startH,dur,reserved=[]){
+  const endH=startH+dur;
+  const overlaps=item=>item.day===day&&item.startH<endH-.001&&item.startH+item.dur>startH+.001;
+  return !EVENTS.some(overlaps)&&!WB_BLOCKS.some(overlaps)&&!reserved.some(overlaps);
+}
 function assignImportSlots(selected){
   const loads=computeDayLoads();
   const enriched=selected.map((t,i)=>({task:t,deadline:parseDueToDeadline(t.due,i),dur:priorityToImportDur(t.priority)}));
   enriched.sort((a,b)=>deadlineToAbs(a.deadline)-deadlineToAbs(b.deadline));
   const taken=new Set();
-  return enriched.map((row,idx)=>{
+  const reserved=[];
+  return enriched.reduce((assignments,row)=>{
     let best=null,bestScore=-1e9;
     for(const p of IMPORT_SLOT_POOL){
       const key=p.day+'-'+p.startH;
-      if(taken.has(key))continue;
+      if(taken.has(key)||!importSlotIsAvailable(p.day,p.startH,row.dur,reserved))continue;
       const ends=p.day*24+p.startH+row.dur;
       if(ends>deadlineToAbs(row.deadline)+0.01)continue;
       let sc=120-loads[p.day]*8-Math.max(0,(deadlineToAbs(row.deadline)-ends))*2;
@@ -1266,18 +1272,20 @@ function assignImportSlots(selected){
       let fbScore=-1e9;
       for(const p of IMPORT_SLOT_POOL){
         const key=p.day+'-'+p.startH;
-        if(taken.has(key))continue;
+        if(taken.has(key)||!importSlotIsAvailable(p.day,p.startH,row.dur,reserved))continue;
         let sc=80-loads[p.day]*6;
         const ends=p.day*24+p.startH+row.dur;
         if(ends>deadlineToAbs(row.deadline))sc-=50;
         if(sc>fbScore){fbScore=sc;best={...p};}
       }
     }
-    if(!best)best={...IMPORT_SLOT_POOL[idx%IMPORT_SLOT_POOL.length]};
+    if(!best)return assignments;
     taken.add(best.day+'-'+best.startH);
+    reserved.push({day:best.day,startH:best.startH,dur:row.dur});
     loads[best.day]+=row.dur;
-    return{task:row.task,deadline:row.deadline,dur:row.dur,slot:best};
-  });
+    assignments.push({task:row.task,deadline:row.deadline,dur:row.dur,slot:best});
+    return assignments;
+  },[]);
 }
 
 let importStep=1;
@@ -1417,15 +1425,20 @@ function runImportSchedule(){
 
   setTimeout(()=>{
     const assignments=assignImportSlots(selected);
+    const skipped=selected.length-assignments.length;
+    if(!assignments.length){
+      showToast('No conflict-free import slots available.');
+      return;
+    }
 
     openPanel(`
       <div class="rp-header">
         <div class="rp-orb" style="background:#7c3aed"><div class="rp-orb-inner"></div></div>
-        <div class="rp-title">Scheduling ${selected.length} task${selected.length>1?'s':''}</div>
+        <div class="rp-title">Scheduling ${assignments.length} task${assignments.length>1?'s':''}</div>
         <button class="rp-close" onclick="closePanel()">✕</button>
       </div>
       <div class="rp-body rp-content-enter">
-        <div class="rp-sub" style="margin-bottom:14px">From ${p.name} · ranked by deadline, effort &amp; current load</div>
+        <div class="rp-sub" style="margin-bottom:14px">From ${p.name} · ranked by deadline, effort &amp; current load${skipped?` · ${skipped} left unscheduled because no open slot was available`:''}</div>
         <div style="margin-bottom:16px">
           ${assignments.map((a,i)=>`
             <div class="import-queue-item">
@@ -1437,7 +1450,7 @@ function runImportSchedule(){
               </div>
             </div>`).join('')}
         </div>
-        <button class="confirm-btn" onclick="confirmImport()">Confirm all ${selected.length} tasks</button>
+        <button class="confirm-btn" onclick="confirmImport()">Confirm all ${assignments.length} tasks</button>
         <div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:10px;line-height:1.5">
           Slots respect deadlines, effort &amp; current load.<br>Tap any event to reschedule.
         </div>
