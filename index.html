@@ -1029,8 +1029,9 @@ function showEventPanel(ev){
         <div class="lp-dot ${ld(ev.likelihood)}"></div>${cap(ev.likelihood)} — ${lr(ev.likelihood)}
       </div>
       <button style="width:100%;padding:10px;border-radius:20px;border:1px solid #dadce0;background:transparent;color:#1a73e8;font-size:14px;font-weight:500;margin-bottom:8px;transition:background 150ms ease" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'" onclick="openAddTask('${ev.title}')">Reschedule with optimize</button>
-      <button style="width:100%;padding:10px;border-radius:20px;border:none;background:#fce8e6;color:#c5221f;font-size:14px;font-weight:500;transition:background 150ms ease" onmouseover="this.style.background='#f5c6c2'" onmouseout="this.style.background='#fce8e6'" onclick="closePanel();showToast('Task removed.')">Remove task</button>
+      <button id="remove-task-btn" style="width:100%;padding:10px;border-radius:20px;border:none;background:#fce8e6;color:#c5221f;font-size:14px;font-weight:500;transition:background 150ms ease" onmouseover="this.style.background='#f5c6c2'" onmouseout="this.style.background='#fce8e6'">Remove task</button>
     </div>`);
+  document.getElementById('remove-task-btn').addEventListener('click',()=>removeEvent(ev.id));
 }
 
 function showDriftPanel(ev){
@@ -1095,6 +1096,15 @@ function driftRemove(){
   if(!driftEv) return;
   const idx=EVENTS.findIndex(e=>e.id===driftEv.id);if(idx>-1) EVENTS.splice(idx,1);
   buildWeekGrid();closePanel();showToast('Task removed from your calendar.');
+}
+
+function removeEvent(eventId){
+  const idx=EVENTS.findIndex(e=>e.id===eventId);
+  if(idx<0) return false;
+  EVENTS.splice(idx,1);
+  buildWeekGrid();buildSidebarLoad();buildWeekHeader();
+  closePanel();showToast('Task removed from your calendar.');
+  return true;
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────
