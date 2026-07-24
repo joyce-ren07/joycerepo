@@ -526,7 +526,7 @@ function effortToDur(eff){if(eff==='30m')return .5;if(eff==='1h'||eff==='1 hr')r
 function slotEndsBeforeDeadline(day,startH,dur,dl){return day*24+startH+dur<=dl.day*24+dl.hour+.001;}
 function daysFromTodayToDl(dl){return dl.day-TODAY_DAY;}
 
-let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false;
+let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false,panelCloseTimer=null;
 
 // wellbeing check state
 let wbState={breakfast:true,lunch:false,break:false,sleep:true};
@@ -1064,15 +1064,23 @@ function showDriftPanel(ev){
 
 function openPanel(html){
   const rp=document.getElementById('right-panel');
+  if(panelCloseTimer){clearTimeout(panelCloseTimer);panelCloseTimer=null;}
   rp.style.border='';
   rp.innerHTML=html;
-  if(!panelOpen){rp.classList.add('open');panelOpen=true;}
+  rp.classList.add('open');
+  panelOpen=true;
 }
 function closePanel(){
   const rp=document.getElementById('right-panel');
   if(!panelOpen) return;
   rp.classList.remove('open');
-  setTimeout(()=>{rp.innerHTML='';rp.style.border='none';panelOpen=false;},210);
+  if(panelCloseTimer)clearTimeout(panelCloseTimer);
+  panelCloseTimer=setTimeout(()=>{
+    rp.innerHTML='';
+    rp.style.border='none';
+    panelOpen=false;
+    panelCloseTimer=null;
+  },210);
 }
 
 function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
@@ -1115,6 +1123,7 @@ function runOptimize(){
   const dl=defaultDeadlineForOptimize();
   window._optimizeSlots=buildOptimizeSlots(effortDur,dl);
   window._pendingOptimizeDeadline=dl;
+  const optimizeDelay=view==='cal'?80:300;
   if(view!=='cal') switchView('cal');
   setTimeout(()=>{
     const slots=window._optimizeSlots;
@@ -1140,7 +1149,7 @@ function runOptimize(){
           </div>`).join('')}
         <button class="confirm-btn" id="confirm-btn" onclick="confirmSlot()">Confirm: ${slots[0].label.split(',')[0]}</button>
       </div>`);
-  },view==='cal'?80:300);
+  },optimizeDelay);
 }
 
 function selectSlot(i){
