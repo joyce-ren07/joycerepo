@@ -1103,9 +1103,11 @@ function findDriftSplitSlots(excludeId,count,dur){
 function driftBreak(){
   const base=driftEv;if(!base) return;
   const segDur=.67;
-  const slots=findDriftSplitSlots(base.id,3,segDur);
-  if(!slots.length){
-    showToast('No free future slots left this week to split into.');
+  const need=3;
+  const slots=findDriftSplitSlots(base.id,need,segDur);
+  // Require the full requested count so we never delete a longer task for a partial plan.
+  if(slots.length<need){
+    showToast('Not enough free future slots this week to split into 3 sessions.');
     return;
   }
   closePanel();

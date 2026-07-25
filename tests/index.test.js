@@ -76,6 +76,8 @@ test('drift split slots are in the future and conflict-free for the seeded Portf
 
 test('drift split finds no slots when the rest of the week is fully blocked', () => {
   const { findDriftSplitSlots, EVENTS, driftIntervalFree, TODAY_DAY, TODAY_NOW_H } = loadDriftSplitApi();
+  const portfolio = [...EVENTS].find(e => e.title === 'Portfolio update');
+  assert.ok(portfolio);
 
   // Saturate every candidate hour on remaining days
   const startHours = [9, 10, 11, 14, 15, 16];
@@ -87,7 +89,80 @@ test('drift split finds no slots when the rest of the week is fully blocked', ()
     }
   }
 
-  const slots = fromVm(findDriftSplitSlots(3, 3, 0.67));
+  const slots = fromVm(findDriftSplitSlots(portfolio.id, 3, 0.67));
   assert.equal(slots.length, 0);
-  assert.equal(driftIntervalFree(TODAY_DAY, 20, 0.67, 3, []), true);
+  assert.equal(driftIntervalFree(TODAY_DAY, 20, 0.67, portfolio.id, []), true);
+});
+
+test('driftBreak aborts without mutating EVENTS when fewer than 3 free slots exist', () => {
+  const html = readFileSync(new URL('../index.html', `file://${__filename}`), 'utf8');
+  const [, script] = html.match(/<script>([\s\S]*)<\/script>/);
+  const scriptWithoutInit = script.replace(
+    /buildMiniCal\(\);buildSidebarLoad\(\);buildWeekHeader\(\);buildWeekGrid\(\);\s*$/,
+    ''
+  );
+  const toasts = [];
+  const context = {
+    console,
+    window: {},
+    document: {
+      getElementById() {
+        return {
+          style: {},
+          classList: { add() {}, remove() {} },
+          textContent: '',
+          innerHTML: '',
+        };
+      },
+    },
+    setTimeout: fn => fn(),
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${scriptWithoutInit}
+      closePanel = function(){};
+      buildWeekGrid = function(){};
+      buildSidebarLoad = function(){};
+      buildWeekHeader = function(){};
+      showToast = function(msg){ this.__toasts.push(msg); };
+      this.__toasts = [];
+      this.__api = {
+        findDriftSplitSlots,
+        driftBreak,
+        EVENTS,
+        TODAY_DAY,
+        TODAY_NOW_H,
+      };`,
+    context
+  );
+  const api = context.__api;
+  const portfolio = [...api.EVENTS].find(e => e.title === 'Portfolio update');
+  assert.ok(portfolio);
+
+  // Discover the natural free slots, then block all but one so a full 3-way split is impossible.
+  const natural = fromVm(api.findDriftSplitSlots(portfolio.id, 3, 0.67));
+  assert.ok(natural.length >= 1, 'seed calendar should have at least one free split slot');
+  const keep = natural[0];
+  const startHours = [9, 10, 11, 14, 15, 16];
+  let id = 2000;
+  for (let day = api.TODAY_DAY; day <= 6; day++) {
+    for (const startH of startHours) {
+      if (day * 24 + startH < api.TODAY_DAY * 24 + api.TODAY_NOW_H - 1e-6) continue;
+      if (day === keep.day && startH === keep.startH) continue;
+      api.EVENTS.push({ id: id++, day, startH, dur: 0.67, title: `Block ${day}-${startH}` });
+    }
+  }
+
+  assert.equal(fromVm(api.findDriftSplitSlots(portfolio.id, 3, 0.67)).length, 1);
+
+  vm.runInContext(`driftEv = EVENTS.find(e => e.id === ${portfolio.id}); driftBreak();`, context);
+
+  const stillThere = [...api.EVENTS].some(e => e.id === portfolio.id);
+  assert.equal(stillThere, true, 'original drifting task must remain when split cannot complete');
+  assert.equal(
+    [...api.EVENTS].filter(e => String(e.title).startsWith('Portfolio update (')).length,
+    0,
+    'must not create partial fragments'
+  );
+  assert.ok(context.__toasts.some(t => /Not enough free future slots/i.test(t)));
 });
