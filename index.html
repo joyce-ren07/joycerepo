@@ -1076,19 +1076,51 @@ function closePanel(){
 }
 
 function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
+function driftIntervalFree(day,startH,dur,excludeId,reserved){
+  const endH=startH+dur;
+  const overlaps=item=>item.day===day&&item.startH<endH-.001&&item.startH+item.dur>startH+.001;
+  if(EVENTS.some(e=>e.id!==excludeId&&overlaps(e))) return false;
+  if(WB_BLOCKS.some(overlaps)) return false;
+  if((reserved||[]).some(overlaps)) return false;
+  return true;
+}
+function findDriftSplitSlots(excludeId,count,dur){
+  const n=count==null?3:count;
+  const segDur=dur==null?.67:dur;
+  const slots=[];
+  const nowAbs=TODAY_DAY*24+TODAY_NOW_H;
+  const startHours=[9,10,11,14,15,16];
+  for(let day=TODAY_DAY;day<=6&&slots.length<n;day++){
+    for(const startH of startHours){
+      if(day*24+startH<nowAbs-.001) continue;
+      if(!driftIntervalFree(day,startH,segDur,excludeId,slots)) continue;
+      slots.push({day,startH,dur:segDur});
+      if(slots.length>=n) break;
+    }
+  }
+  return slots;
+}
 function driftBreak(){
-  const base=driftEv;if(!base) return;closePanel();
+  const base=driftEv;if(!base) return;
+  const segDur=.67;
+  const slots=findDriftSplitSlots(base.id,3,segDur);
+  if(!slots.length){
+    showToast('No free future slots left this week to split into.');
+    return;
+  }
+  closePanel();
   setTimeout(()=>{
     let nextId=EVENTS.reduce((m,e)=>Math.max(m,e.id),0);
-    [1,2,3].forEach((d,i)=>{
+    slots.forEach((slot,i)=>{
       nextId++;
       const dl=base.deadline
-        ?{day:Math.max(d,base.deadline.day),hour:base.deadline.hour}
-        :{day:d,hour:17};
-      EVENTS.push({id:nextId,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:dl});
+        ?{day:base.deadline.day,hour:base.deadline.hour}
+        :{day:slot.day,hour:17};
+      EVENTS.push({id:nextId,title:base.title+` (${i+1}/${slots.length})`,day:slot.day,startH:slot.startH,dur:segDur,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:dl});
     });
     const idx=EVENTS.findIndex(e=>e.id===base.id);if(idx>-1) EVENTS.splice(idx,1);
-    buildWeekGrid();showToast('Split into 3 sessions across Mon–Wed 9 AM.');
+    buildWeekGrid();buildSidebarLoad();buildWeekHeader();
+    showToast(`Split into ${slots.length} session${slots.length>1?'s':''} on free times this week.`);
   },220);
 }
 function driftRemove(){
