@@ -526,7 +526,7 @@ function effortToDur(eff){if(eff==='30m')return .5;if(eff==='1h'||eff==='1 hr')r
 function slotEndsBeforeDeadline(day,startH,dur,dl){return day*24+startH+dur<=dl.day*24+dl.hour+.001;}
 function daysFromTodayToDl(dl){return dl.day-TODAY_DAY;}
 
-let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false;
+let selEffort='1h',selPriority='high',selSlot=0,driftEv=null,view='cal',panelOpen=false,slotConfirming=false;
 
 // wellbeing check state
 let wbState={breakfast:true,lunch:false,break:false,sleep:true};
@@ -1110,7 +1110,7 @@ function selectPriority(btn,val){selPriority=val;btn.closest('.effort-pills').qu
 function runOptimize(){
   const name=document.getElementById('modal-task-input').value.trim()||'New task';
   window._pendingOptimizeName=name;
-  closeModal();selSlot=0;
+  closeModal();selSlot=0;slotConfirming=false;
   const effortDur=effortToDur(selEffort);
   const dl=defaultDeadlineForOptimize();
   window._optimizeSlots=buildOptimizeSlots(effortDur,dl);
@@ -1144,6 +1144,7 @@ function runOptimize(){
 }
 
 function selectSlot(i){
+  if(slotConfirming) return;
   selSlot=i;
   document.querySelectorAll('.slot-card').forEach((c,j)=>c.classList.toggle('selected',j===i));
   const btn=document.getElementById('confirm-btn');
@@ -1152,15 +1153,20 @@ function selectSlot(i){
 }
 
 function confirmSlot(){
+  if(slotConfirming) return;
   const name=window._pendingOptimizeName||'New task';
+  const slots=window._optimizeSlots||[];
+  const slot=slots[selSlot]||slots[0];
+  const effort=selEffort;
+  const priority=selPriority;
+  const dl=window._pendingOptimizeDeadline||defaultDeadlineForOptimize();
   const btn=document.getElementById('confirm-btn');
+  slotConfirming=true;
   if(btn){btn.textContent='Adding…';btn.classList.add('confirming');btn.disabled=true;}
   setTimeout(()=>{
-    const slots=window._optimizeSlots||[];
-    const slot=slots[selSlot]||slots[0];
-    const dl=window._pendingOptimizeDeadline||defaultDeadlineForOptimize();
+    slotConfirming=false;
     if(!slot){buildWeekGrid();closePanel();return;}
-    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(selEffort),color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
+    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(effort),color:'#1a73e8',bg:'#e8f0fe',effort:effort,priority:priority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
     buildWeekGrid();buildSidebarLoad();buildWeekHeader();closePanel();showToast(`"${name}" added — ${slot.label.split(',')[0]}`);
   },420);
 }
