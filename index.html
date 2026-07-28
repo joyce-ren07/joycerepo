@@ -1077,7 +1077,9 @@ function closePanel(){
 
 function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
 function driftBreak(){
-  const base=driftEv;if(!base) return;closePanel();
+  // Clear driftEv synchronously so a double-click cannot schedule a second split
+  // before the deferred mutation runs (that path duplicated all 3 fragments).
+  const base=driftEv;if(!base) return;driftEv=null;closePanel();
   setTimeout(()=>{
     let nextId=EVENTS.reduce((m,e)=>Math.max(m,e.id),0);
     [1,2,3].forEach((d,i)=>{
