@@ -1284,13 +1284,20 @@ let importStep=1;
 let importPlatform=null;
 let importChecked=new Set();
 let importTasks=[];
+let importConnectTimer=null;
+
+function clearImportConnectTimer(){
+  if(importConnectTimer!=null){clearTimeout(importConnectTimer);importConnectTimer=null;}
+}
 
 function openImportModal(){
+  clearImportConnectTimer();
   importStep=1; importPlatform=null; importChecked=new Set();
   renderImportStep1();
   document.getElementById('import-overlay').classList.add('open');
 }
 function closeImportModal(){
+  clearImportConnectTimer();
   document.getElementById('import-overlay').classList.remove('open');
 }
 
@@ -1330,7 +1337,9 @@ function selectPlatform(id){
 
 function startFakeConnect(){
   if(!importPlatform) return;
-  const p=PLATFORMS.find(x=>x.id===importPlatform);
+  const platformId=importPlatform;
+  const p=PLATFORMS.find(x=>x.id===platformId);
+  if(!p) return;
   document.getElementById('import-modal-inner').innerHTML=`
     <div class="import-modal-header">
       <div class="import-modal-title">Import tasks</div>
@@ -1343,11 +1352,21 @@ function startFakeConnect(){
       </div>
     </div>
     <div class="import-modal-footer"><span></span></div>`;
-  setTimeout(()=>renderImportStep2(),1200);
+  // Cancel any prior connect timer so close/reopen or double-connect cannot
+  // fire a stale callback against a reset importPlatform / wiped selection.
+  clearImportConnectTimer();
+  importConnectTimer=setTimeout(()=>{
+    importConnectTimer=null;
+    if(importPlatform!==platformId) return;
+    const overlay=document.getElementById('import-overlay');
+    if(!overlay||!overlay.classList.contains('open')) return;
+    renderImportStep2();
+  },1200);
 }
 
 function renderImportStep2(){
   const p=PLATFORMS.find(x=>x.id===importPlatform);
+  if(!p) return;
   importTasks=IMPORT_TASKS_BY_PLATFORM[importPlatform]||[];
   importChecked=new Set();
   updateImportStep2();
@@ -1355,6 +1374,7 @@ function renderImportStep2(){
 
 function updateImportStep2(){
   const p=PLATFORMS.find(x=>x.id===importPlatform);
+  if(!p) return;
   const total=importTasks.length;
   const selCount=importChecked.size;
   const allSel=selCount===total;
