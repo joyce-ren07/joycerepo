@@ -1111,7 +1111,13 @@ function runOptimize(){
   const name=document.getElementById('modal-task-input').value.trim()||'New task';
   window._pendingOptimizeName=name;
   closeModal();selSlot=0;
-  const effortDur=effortToDur(selEffort);
+  // Snapshot effort/priority with the scored slots — Confirm must not read live
+  // selEffort/selPriority (New task can reopen and change them before Confirm).
+  const effort=selEffort;
+  const priority=selPriority;
+  window._pendingOptimizeEffort=effort;
+  window._pendingOptimizePriority=priority;
+  const effortDur=effortToDur(effort);
   const dl=defaultDeadlineForOptimize();
   window._optimizeSlots=buildOptimizeSlots(effortDur,dl);
   window._pendingOptimizeDeadline=dl;
@@ -1153,6 +1159,8 @@ function selectSlot(i){
 
 function confirmSlot(){
   const name=window._pendingOptimizeName||'New task';
+  const effort=window._pendingOptimizeEffort||selEffort;
+  const priority=window._pendingOptimizePriority||selPriority;
   const btn=document.getElementById('confirm-btn');
   if(btn){btn.textContent='Adding…';btn.classList.add('confirming');btn.disabled=true;}
   setTimeout(()=>{
@@ -1160,7 +1168,7 @@ function confirmSlot(){
     const slot=slots[selSlot]||slots[0];
     const dl=window._pendingOptimizeDeadline||defaultDeadlineForOptimize();
     if(!slot){buildWeekGrid();closePanel();return;}
-    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(selEffort),color:'#1a73e8',bg:'#e8f0fe',effort:selEffort,priority:selPriority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
+    EVENTS.push({id:Date.now(),title:name,day:slot.day,startH:slot.startH,dur:effortToDur(effort),color:'#1a73e8',bg:'#e8f0fe',effort:effort,priority:priority,likelihood:slot.likelihood,type:'deep',done:false,drift:false,driftCount:0,deadline:dl});
     buildWeekGrid();buildSidebarLoad();buildWeekHeader();closePanel();showToast(`"${name}" added — ${slot.label.split(',')[0]}`);
   },420);
 }
