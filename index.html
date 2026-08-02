@@ -1075,10 +1075,17 @@ function closePanel(){
   setTimeout(()=>{rp.innerHTML='';rp.style.border='none';panelOpen=false;},210);
 }
 
+let driftBreakTimer=null;
 function driftReschedule(){closePanel();setTimeout(()=>openAddTask(driftEv?driftEv.title:''),220);}
 function driftBreak(){
-  const base=driftEv;if(!base) return;closePanel();
-  setTimeout(()=>{
+  // Guard re-entry and keep driftEv until the deferred split commits (or is cancelled
+  // by driftRemove). A fire-and-forget timeout previously let Remove race Break and
+  // resurrect a deleted drifting task as 3 fragments.
+  const base=driftEv;if(!base||driftBreakTimer) return;closePanel();
+  driftBreakTimer=setTimeout(()=>{
+    driftBreakTimer=null;
+    if(!driftEv||driftEv.id!==base.id) return;
+    if(!EVENTS.some(e=>e.id===base.id)) return;
     let nextId=EVENTS.reduce((m,e)=>Math.max(m,e.id),0);
     [1,2,3].forEach((d,i)=>{
       nextId++;
@@ -1088,12 +1095,15 @@ function driftBreak(){
       EVENTS.push({id:nextId,title:base.title+` (${i+1}/3)`,day:d,startH:9+i,dur:.67,color:base.color,bg:base.bg,effort:'40m',priority:base.priority,likelihood:'high',type:base.type,done:false,drift:false,driftCount:0,deadline:dl});
     });
     const idx=EVENTS.findIndex(e=>e.id===base.id);if(idx>-1) EVENTS.splice(idx,1);
+    driftEv=null;
     buildWeekGrid();showToast('Split into 3 sessions across Mon–Wed 9 AM.');
   },220);
 }
 function driftRemove(){
+  if(driftBreakTimer){clearTimeout(driftBreakTimer);driftBreakTimer=null;}
   if(!driftEv) return;
   const idx=EVENTS.findIndex(e=>e.id===driftEv.id);if(idx>-1) EVENTS.splice(idx,1);
+  driftEv=null;
   buildWeekGrid();closePanel();showToast('Task removed from your calendar.');
 }
 
